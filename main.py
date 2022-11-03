@@ -41,12 +41,13 @@ for epoch in range(num_epochs):
 # save parameter estimates
 a_est = vae.decoder.linear.weight.detach().numpy()
 d_est = vae.decoder.linear.bias.detach().numpy()
+theta_est = vae.encoder.est_theta(dataset.x_train).detach().numpy()
 
 # calculate theta estimates
 # TODO
 
 # invert factors for increased interpretability
-a_est, _ = inv_factors(a_est)
+a_est, theta_est = inv_factors(a_est, theta_est)
 
 # read in true parameter estimates
 a_true = np.loadtxt('./data/a.txt')
@@ -61,6 +62,14 @@ plt.title('Parameter estimation plot: a')
 plt.xlabel('True values')
 plt.ylabel('Estimates')
 plt.savefig('./figures/param_est_plot_a.png')
+
+# parameter estimation plot for theta
+plt.figure()
+plt.scatter(y=theta_est.flatten(), x=theta_true.flatten(), alpha=.5)
+plt.title('Parameter estimation plot: theta')
+plt.xlabel('True values')
+plt.ylabel('Estimates')
+plt.savefig('./figures/param_est_plot_theta.png')
 
 # parameter estimation plot for d
 plt.figure()

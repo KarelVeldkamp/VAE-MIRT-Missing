@@ -63,6 +63,17 @@ class VariationalEncoder(nn.Module):
         self.kl = torch.mean(-0.5 * torch.sum(1 + torch.log(sigma) - mu ** 2 - torch.log(sigma).exp(), dim = 1), dim = 0)
         return z
 
+    def est_theta(self, x):
+        """
+        estimate theta parameters (latent factor scores)
+        :param x: input data
+        :return: theta estimates
+        """
+        x = F.relu(self.dense1(x))
+        theta_hat = self.dense3m(x)
+        return(theta_hat)
+
+
 
 class Decoder(nn.Module):
     """
