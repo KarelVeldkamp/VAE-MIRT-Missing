@@ -4,6 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 import torch.nn.utils.prune
+import numpy as np
 
 
 class ResponseDataset(Dataset):
@@ -38,9 +39,9 @@ class VariationalEncoder(nn.Module):
         :param latent_dims: number of latent dimensions of the model
         """
         super(VariationalEncoder, self).__init__()
-        self.dense1 = nn.Linear(28, 10)
-        self.dense3m = nn.Linear(10, latent_dims)
-        self.dense3s = nn.Linear(10, latent_dims)
+        self.dense1 = nn.Linear(28, 16)
+        self.dense3m = nn.Linear(16, latent_dims)
+        self.dense3s = nn.Linear(16, latent_dims)
 
         self.N = torch.distributions.Normal(0, 1)
         self.kl = 0
@@ -52,15 +53,21 @@ class VariationalEncoder(nn.Module):
         :return: a sample from the latent dimensions
         """
         # calculate m and mu based on encoder weights
-        x = F.relu(self.dense1(x))
+        x = F.elu(self.dense1(x))
         mu =  self.dense3m(x)
-        sigma = torch.exp(self.dense3s(x))
+        log_sigma = self.dense3s(x)
+        sigma = torch.exp(log_sigma)
+
 
         # sample from the latent dimensions
-        z = mu + sigma*self.N.sample(mu.shape)
+        z = mu + sigma * self.N.sample(mu.shape)
 
         # calculate kl divergence
-        self.kl = torch.mean(-0.5 * torch.sum(1 + torch.log(sigma) - mu ** 2 - torch.log(sigma).exp(), dim = 1), dim = 0)
+        #self.kl = torch.mean(-0.5 * torch.sum(1 + torch.log(sigma) - mu ** 2 - torch.log(sigma).exp(), dim = 1), dim = 0)
+        kl = 1 + 2*log_sigma - torch.square(mu) - torch.exp(2*log_sigma)
+        kl = torch.sum(kl, dim=-1)
+        self.kl = -.5 * kl
+
         return z
 
     def est_theta(self, x):
@@ -71,7 +78,7 @@ class VariationalEncoder(nn.Module):
         """
         x = F.relu(self.dense1(x))
         theta_hat = self.dense3m(x)
-        return(theta_hat)
+        return theta_hat
 
 
 
@@ -153,14 +160,18 @@ def train_epoch(vae, dataloader, optimizer):
         # forward pass
         X_hat = vae(X)
         # loss consistst of reconstruction error and the kl divergence
-        loss = ((X - X_hat)**2).sum() + vae.encoder.kl
+        #loss = ((X - X_hat)**2).sum() + vae.encoder.kl
+
+        bce = torch.nn.functional.binary_cross_entropy(X_hat, X) * 28
+        loss = torch.mean(bce + vae.encoder.kl)
 
         # Backward pass
         optimizer.zero_grad()
         loss.backward()
+
         optimizer.step()
         # Print batch loss
         #print('\t partial train loss (single batch): %f' % (loss.item()))
         train_loss+=loss.item()
 
-    return train_loss / len(dataloader.dataset)
+    return train_loss / len(dataloader)
