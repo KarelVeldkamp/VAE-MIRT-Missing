@@ -50,7 +50,7 @@ with open("./config.yml", "r") as f:
 
 
 # initialise model and optimizer
-logger = CSVLogger("logs", name="my_logs")
+logger = CSVLogger("logs", name="my_logs", version=0)
 trainer = Trainer(fast_dev_run=False,
                   max_epochs=cfg['max_epochs'],
                   logger=logger,
@@ -63,19 +63,7 @@ vae = VariationalAutoencoder(latent_dims=cfg['latent_dims'],
                              batch_size=cfg['batch_size'],
                              data_path=cfg['data_path'])
 trainer.fit(vae)
-# ## train model
-# loss_values = []
-# for epoch in range(cfg['max_epochs']):
-#     train_loss = train_epoch(vae,train_loader,optim)
-#     loss_values.append(train_loss)
-#     if epoch % 50 == 0:
-#         print('\n EPOCH {}/{} \t train loss {:.3f}'.format(epoch + 1, cfg['max_epochs'],train_loss))
-#
-# plt.title(f'Training loss')
-# plt.plot(loss_values)
-# plt.savefig(f'./figures/training_loss.png')
-#
-# save parameter estimates
+
 data = pd.read_csv(cfg['data_path']).iloc[:, 1:]
 data = torch.tensor(data.values, dtype=torch.float32)
 a_est = vae.decoder.linear.weight.detach().numpy()
@@ -86,11 +74,17 @@ theta_est = vae.encoder.est_theta(data).detach().numpy()
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est, theta_est)
 
+
+# plot training loss
+logs = pd.read_csv('logs/my_logs/version_0/metrics.csv')
+plt.plot(logs['epoch'], logs['train_loss'])
+plt.title('Training loss')
+plt.savefig(f'./figures/training_loss.png')
+
 # read in true parameter estimates
 a_true = np.loadtxt('./data/a.txt')
 theta_true = np.loadtxt('./data/theta.txt')
 d_true = np.genfromtxt('./data/d.txt')
-
 
 # parameter estimation plot for a
 for dim in range(3):

@@ -65,8 +65,9 @@ class VariationalEncoder(pl.LightningModule):
         # calculate kl divergence
         #self.kl = torch.mean(-0.5 * torch.sum(1 + torch.log(sigma) - mu ** 2 - torch.log(sigma).exp(), dim = 1), dim = 0)
         kl = 1 + 2*log_sigma - torch.square(mu) - torch.exp(2*log_sigma)
+
         kl = torch.sum(kl, dim=-1)
-        self.kl = -.5 * kl
+        self.kl = -.5 * torch.mean(kl)
 
         return z
 
@@ -76,7 +77,7 @@ class VariationalEncoder(pl.LightningModule):
         :param x: input data
         :return: theta estimates
         """
-        x = F.relu(self.dense1(x))
+        x = F.elu(self.dense1(x))
         theta_hat = self.dense3m(x)
         return theta_hat
 
@@ -123,7 +124,7 @@ class VariationalAutoencoder(pl.LightningModule):
     """
     Neural network for the entire variational autoencoder
     """
-    def __init__(self, latent_dims, hidden_layer_size, qm, learning_rate, batch_size, data_path):
+    def __init__(self, latent_dims, hidden_layer_size, qm, learning_rate, batch_size, data_path, beta=1):
         """
         Initialisaiton
         :param latent_dims: number of latent dimensions
@@ -136,6 +137,7 @@ class VariationalAutoencoder(pl.LightningModule):
         self.lr = learning_rate
         self.batch_size = batch_size
         self.data_path = data_path
+        self.beta = beta
 
     def forward(self, x):
         """
@@ -153,7 +155,8 @@ class VariationalAutoencoder(pl.LightningModule):
         # forward pass
         X_hat = self(batch)
         bce = torch.nn.functional.binary_cross_entropy(X_hat, batch) * 28
-        loss = torch.mean(bce + self.encoder.kl)
+        loss = bce + self.beta * self.encoder.kl
+        #print(self.encoder.kl.shape)
         self.log('train_loss',loss)
         return {'loss': loss}
 
@@ -162,35 +165,3 @@ class VariationalAutoencoder(pl.LightningModule):
         train_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         return train_loader
 
-
-def train_epoch(vae, dataloader, optimizer):
-    """
-    Function that trains the model for a single epoch
-    :param vae: An instance of VariationalAutoencoder
-    :param dataloader: An instance of ResponseDataset
-    :param optimizer: A torch optimizer
-    :return: This epoch's training loss
-    """
-    # Set encoder and decoder to train mode
-    vae.train()
-    train_loss = 0.0
-    # Iterate though the data
-    for X in dataloader:
-        # forward pass
-        X_hat = vae(X)
-        # loss consistst of reconstruction error and the kl divergence
-        #loss = ((X - X_hat)**2).sum() + vae.encoder.kl
-
-        bce = torch.nn.functional.binary_cross_entropy(X_hat, X) * 28
-        loss = bce + vae.encoder.kl
-
-        # Backward pass
-        optimizer.zero_grad()
-        loss.backward()
-
-        optimizer.step()
-        # Print batch loss
-        #print('\t partial train loss (single batch): %f' % (loss.item()))
-        train_loss+=loss.item()
-
-    return train_loss / len(dataloader)
