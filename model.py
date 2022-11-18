@@ -4,8 +4,8 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 import torch.nn.utils.prune
-import numpy as np
-
+import pytorch_lightning as pl
+from torch.utils.data import DataLoader
 
 class ResponseDataset(Dataset):
     """
@@ -29,19 +29,19 @@ class ResponseDataset(Dataset):
         return self.x_train[idx]
 
 
-class VariationalEncoder(nn.Module):
+class VariationalEncoder(pl.LightningModule):
     """
     Neural network used as encoder
     """
-    def __init__(self, latent_dims):
+    def __init__(self, latent_dims, hidden_layer_size):
         """
         Initialisation
         :param latent_dims: number of latent dimensions of the model
         """
         super(VariationalEncoder, self).__init__()
-        self.dense1 = nn.Linear(28, 16)
-        self.dense3m = nn.Linear(16, latent_dims)
-        self.dense3s = nn.Linear(16, latent_dims)
+        self.dense1 = nn.Linear(28, hidden_layer_size)
+        self.dense3m = nn.Linear(hidden_layer_size, latent_dims)
+        self.dense3s = nn.Linear(hidden_layer_size, latent_dims)
 
         self.N = torch.distributions.Normal(0, 1)
         self.kl = 0
@@ -81,8 +81,7 @@ class VariationalEncoder(nn.Module):
         return theta_hat
 
 
-
-class Decoder(nn.Module):
+class Decoder(pl.LightningModule):
     """
     Neural network used as decoder
     """
@@ -120,19 +119,23 @@ class Decoder(nn.Module):
         return x
 
 
-class VariationalAutoencoder(nn.Module):
+class VariationalAutoencoder(pl.LightningModule):
     """
     Neural network for the entire variational autoencoder
     """
-    def __init__(self, latent_dims, qm):
+    def __init__(self, latent_dims, hidden_layer_size, qm, learning_rate, batch_size, data_path):
         """
         Initialisaiton
         :param latent_dims: number of latent dimensions
         :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
         """
         super(VariationalAutoencoder, self).__init__()
-        self.encoder = VariationalEncoder(latent_dims)
+        self.encoder = VariationalEncoder(latent_dims, hidden_layer_size)
         self.decoder = Decoder(latent_dims, qm)
+
+        self.lr = learning_rate
+        self.batch_size = batch_size
+        self.data_path = data_path
 
     def forward(self, x):
         """
@@ -142,6 +145,22 @@ class VariationalAutoencoder(nn.Module):
         """
         z = self.encoder(x)
         return self.decoder(z)
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=self.lr, amsgrad=True)
+
+    def training_step(self, batch, batch_idx):
+        # forward pass
+        X_hat = self(batch)
+        bce = torch.nn.functional.binary_cross_entropy(X_hat, batch) * 28
+        loss = torch.mean(bce + self.encoder.kl)
+        self.log('train_loss',loss)
+        return {'loss': loss}
+
+    def train_dataloader(self):
+        dataset = ResponseDataset(self.data_path)
+        train_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
+        return train_loader
 
 
 def train_epoch(vae, dataloader, optimizer):
@@ -163,7 +182,7 @@ def train_epoch(vae, dataloader, optimizer):
         #loss = ((X - X_hat)**2).sum() + vae.encoder.kl
 
         bce = torch.nn.functional.binary_cross_entropy(X_hat, X) * 28
-        loss = torch.mean(bce + vae.encoder.kl)
+        loss = bce + vae.encoder.kl
 
         # Backward pass
         optimizer.zero_grad()

@@ -1,0 +1,7 @@
+configs:
+  batch_size: 10000
+  max_epochs: 5000
+  latent_dims: 3
+  Q_matrix_file: './QMatrix.csv'
+  learning_rate: .001
+  data_path: './data/data.csv'
