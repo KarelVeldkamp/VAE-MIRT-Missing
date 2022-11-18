@@ -3,5 +3,5 @@ configs:
   max_epochs: 5000
   latent_dims: 3
   Q_matrix_file: './QMatrix.csv'
-  learning_rate: .001
+  learning_rate: .005
   data_path: './data/data.csv'

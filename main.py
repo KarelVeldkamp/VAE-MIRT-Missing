@@ -53,8 +53,8 @@ with open("./config.yml", "r") as f:
 logger = CSVLogger("logs", name="my_logs")
 trainer = Trainer(fast_dev_run=False,
                   max_epochs=cfg['max_epochs'],
-                  logger=logger)#,
-                  #callbacks=[EarlyStopping(monitor='train_loss', min_delta=1e-8, patience=100, mode='min')])
+                  logger=logger,
+                  callbacks=[EarlyStopping(monitor='train_loss', min_delta=1e-8, patience=100, mode='min')])
 QMatrix = genfromtxt(cfg['Q_matrix_file'], delimiter=',')
 vae = VariationalAutoencoder(latent_dims=cfg['latent_dims'],
                              hidden_layer_size=int((28+2)*cfg['latent_dims']/2),
@@ -100,8 +100,8 @@ for dim in range(3):
     mse = MSE(ai_est, ai_true)
     plt.scatter(y=ai_est, x=ai_true)
     plt.plot(ai_true, ai_true)
-    for i, x in enumerate(ai_true):
-        plt.text(ai_true[i], ai_est[i], i)
+    #for i, x in enumerate(ai_true):
+    #    plt.text(ai_true[i], ai_est[i], i)
     plt.title(f'Parameter estimation plot: a{dim+1}, MSE={round(mse,4)}')
     plt.xlabel('True values')
     plt.ylabel('Estimates')
