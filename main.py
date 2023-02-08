@@ -43,48 +43,51 @@ with open("./config.yml", "r") as f:
     cfg = yaml.safe_load(f)
     cfg = cfg['configs']
 
-# create data loader
-#dataset = ResponseDataset('./data/data.csv')
-#train_loader= DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
-#N_items = dataset.x_train.shape[1]
+# read data and true parameter values
+data = pd.read_csv(f'./data/{cfg["which_data"]}/data.csv').iloc[:, 1:]
+data = torch.tensor(data.values, dtype=torch.float32)
+# read in true parameter estimates
+a_true = pd.read_csv(f'./data/{cfg["which_data"]}/a.csv').iloc[:, 1:].values
+theta_true = pd.read_csv(f'./data/{cfg["which_data"]}/theta.csv').iloc[:, 1:].values
+d_true = pd.read_csv(f'./data/{cfg["which_data"]}/d.csv').iloc[:, 1:].values
 
 
 # initialise model and optimizer
-logger = CSVLogger("logs", name="my_logs", version=0)
+logger = CSVLogger("logs", name=cfg['which_data'], version=0)
 trainer = Trainer(fast_dev_run=False,
                   max_epochs=cfg['max_epochs'],
                   logger=logger,
-                  callbacks=[EarlyStopping(monitor='train_loss', min_delta=1e-8, patience=100, mode='min')])
-QMatrix = genfromtxt(cfg['Q_matrix_file'], delimiter=',')
-vae = VariationalAutoencoder(latent_dims=cfg['latent_dims'],
-                             hidden_layer_size=int((28+2)*cfg['latent_dims']/2),
-                             qm=QMatrix,
+                  callbacks=[EarlyStopping(monitor='train_loss', min_delta=cfg['min_delta'], patience=cfg['patience'], mode='min')])
+Q = a_true != 0
+Q = Q.astype(int)
+vae = VariationalAutoencoder(nitems=data.shape[1],
+                             latent_dims=cfg['latent_dims'],
+                             hidden_layer_size=int((data.shape[1]+2)*cfg['latent_dims']/2),
+                             qm=Q,
                              learning_rate=cfg['learning_rate'],
-                             batch_size=cfg['batch_size'],
-                             data_path=cfg['data_path'])
+                             batch_size=data.shape[0],#cfg['batch_size'],
+                             data_path=f'./data/{cfg["which_data"]}/data.csv',
+                             missing=True)
 trainer.fit(vae)
 
-data = pd.read_csv(cfg['data_path']).iloc[:, 1:]
-data = torch.tensor(data.values, dtype=torch.float32)
-a_est = vae.decoder.linear.weight.detach().numpy()
+a_est = vae.decoder.linear.weight.detach().numpy()[:, 0:3]
 d_est = vae.decoder.linear.bias.detach().numpy()
-theta_est = vae.encoder.est_theta(data).detach().numpy()
-
-
+missing = torch.isnan(data)
+data[missing] = 0
+mask = (~missing).int()
+theta_est = vae.encoder.est_theta(data, mask).detach().numpy()
+print(a_est.shape)
+print(d_est.shape)
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est, theta_est)
 
 
 # plot training loss
-logs = pd.read_csv('logs/my_logs/version_0/metrics.csv')
+logs = pd.read_csv(f'logs/{cfg["which_data"]}/version_0/metrics.csv')
 plt.plot(logs['epoch'], logs['train_loss'])
 plt.title('Training loss')
-plt.savefig(f'./figures/training_loss.png')
+plt.savefig(f'./figures/{cfg["which_data"]}/training_loss.png')
 
-# read in true parameter estimates
-a_true = np.loadtxt('./data/a.txt')
-theta_true = np.loadtxt('./data/theta.txt')
-d_true = np.genfromtxt('./data/d.txt')
 
 # parameter estimation plot for a
 for dim in range(3):
@@ -99,7 +102,7 @@ for dim in range(3):
     plt.title(f'Parameter estimation plot: a{dim+1}, MSE={round(mse,4)}')
     plt.xlabel('True values')
     plt.ylabel('Estimates')
-    plt.savefig(f'./figures/param_est_plot_a{dim+1}.png')
+    plt.savefig(f'./figures/{cfg["which_data"]}/param_est_plot_a{dim+1}.png')
 
     # parameter estimation plot for theta
     plt.figure()
@@ -111,7 +114,7 @@ for dim in range(3):
     plt.title(f'Parameter estimation plot: theta{dim+1}, MSE={round(mse,4)}')
     plt.xlabel('True values')
     plt.ylabel('Estimates')
-    plt.savefig(f'./figures/param_est_plot_theta{dim+1}.png')
+    plt.savefig(f'./figures/{cfg["which_data"]}/param_est_plot_theta{dim+1}.png')
 
 # parameter estimation plot for d
 plt.figure()
@@ -121,7 +124,7 @@ mse = MSE(d_est, d_true)
 plt.title(f'Parameter estimation plot: d, MSE={round(mse,4)}')
 plt.xlabel('True values')
 plt.ylabel('Estimates')
-plt.savefig('./figures/param_est_plot_d.png')
+plt.savefig(f'./figures/{cfg["which_data"]}/param_est_plot_d.png')
 
 
 
