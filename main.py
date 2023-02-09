@@ -48,6 +48,7 @@ data = pd.read_csv(f'./data/{cfg["which_data"]}/data.csv').iloc[:, 1:]
 data = torch.tensor(data.values, dtype=torch.float32)
 # read in true parameter estimates
 a_true = pd.read_csv(f'./data/{cfg["which_data"]}/a.csv').iloc[:, 1:].values
+ndim = a_true.shape[1]
 theta_true = pd.read_csv(f'./data/{cfg["which_data"]}/theta.csv').iloc[:, 1:].values
 d_true = pd.read_csv(f'./data/{cfg["which_data"]}/d.csv').iloc[:, 1:].values
 
@@ -62,12 +63,14 @@ Q = a_true != 0
 Q = Q.astype(int)
 vae = VariationalAutoencoder(nitems=data.shape[1],
                              latent_dims=cfg['latent_dims'],
-                             hidden_layer_size=int((data.shape[1]+2)*cfg['latent_dims']/2),
+                             hidden_layer_size=cfg['hidden_layer_size'],
+                             hidden_layer_size2=cfg['hidden_layer_size2'],
+                             hidden_layer_size3=cfg['hidden_layer_size3'],
                              qm=Q,
                              learning_rate=cfg['learning_rate'],
                              batch_size=data.shape[0],#cfg['batch_size'],
                              data_path=f'./data/{cfg["which_data"]}/data.csv',
-                             missing=True)
+                             missing=False)
 trainer.fit(vae)
 
 a_est = vae.decoder.linear.weight.detach().numpy()[:, 0:3]
@@ -75,9 +78,7 @@ d_est = vae.decoder.linear.bias.detach().numpy()
 missing = torch.isnan(data)
 data[missing] = 0
 mask = (~missing).int()
-theta_est = vae.encoder.est_theta(data, mask).detach().numpy()
-print(a_est.shape)
-print(d_est.shape)
+theta_est = vae.encoder.est_theta(data, missing).detach().numpy()
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est, theta_est)
 
@@ -87,10 +88,23 @@ logs = pd.read_csv(f'logs/{cfg["which_data"]}/version_0/metrics.csv')
 plt.plot(logs['epoch'], logs['train_loss'])
 plt.title('Training loss')
 plt.savefig(f'./figures/{cfg["which_data"]}/training_loss.png')
+# plot binary cross entropy
+plt.clf()
+plt.plot(logs['epoch'], logs['binary_cross_entropy'])
+plt.title('Binary Cross Entropy')
+plt.savefig(f'./figures/{cfg["which_data"]}/binary_cross_entropy.png')
+# plot KL divergence
+plt.clf()
+plt.plot(logs['epoch'], logs['kl_divergence'])
+plt.title('KL Divergence')
+plt.savefig(f'./figures/{cfg["which_data"]}/kl_divergence.png')
 
+
+print(np.mean(theta_est, 0))
+print(np.std(theta_est, 0))
 
 # parameter estimation plot for a
-for dim in range(3):
+for dim in range(ndim):
     plt.figure()
     ai_est = a_est[:,dim]
     ai_true = a_true[:,dim]

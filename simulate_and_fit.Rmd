@@ -1,0 +1,101 @@
+---
+title: "Untitled"
+author: "Karel"
+date: "2023-02-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+ndim=2
+sparsity=.90
+theta1 <- matrix(rnorm(5000*ndim), ncol=ndim)
+d1 <- matrix(runif(50, -2, 2))
+a1 <- matrix(runif(50*ndim,.5,2), ncol=ndim)
+
+a1[1] <- 0
+if(ndim==1){
+  a1[1] = 0
+} else if (ndim==2){
+  a1[1:5, 1] = 0
+  a1[6:10, 2] = 0
+}else if (ndim==3){
+  a1[1:10, 1] = 0
+  a1[11:20, 2] = 0
+  a1[21:30, 3] = 0
+}
+
+print('simulating data...')
+data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
+data1[sample(length(data1), length(data1)*sparsity, replace = FALSE)] <- NA
+
+write.csv(data1, file='~/Documents/GitHub/MIRT-VAE-QMAtrix/data/missing_small/data.csv')
+
+write.csv(a1, file='~/Documents/GitHub/MIRT-VAE-QMAtrix/data/missing_small/a.csv')
+write.csv(d1, file='~/Documents/GitHub/MIRT-VAE-QMAtrix/data/missing_small/d.csv')
+write.csv(theta1, file='~/Documents/GitHub/MIRT-VAE-QMAtrix/data/missing_small/theta.csv')
+
+
+# initialize paramters
+print('initializing pars...')
+pars <- mirt(data1,ndim, pars = 'values', technical = list())
+
+# set some loadings to zero
+if(ndim==1){
+  pars[pars$name == 'a1' & pars$item %in% paste0('Item_', 1), ]$value = 0
+  pars[pars$name == 'a1' & pars$item %in% paste0('Item_', 1), ]$est = FALSE
+} else if (ndim==2){
+  pars[pars$name == 'a1' & pars$item %in% paste0('Item_', 1:5), ]$value = 0
+  pars[pars$name == 'a1' & pars$item %in% paste0('Item_', 1:5), ]$est = FALSE
+  pars[pars$name == 'a2' & pars$item %in% paste0('Item_', 6:10), ]$value = 0
+  pars[pars$name == 'a2' & pars$item %in% paste0('Item_', 6:10), ]$est = FALSE
+}else if (ndim==3){
+  pars[pars$name == 'a1' & pars$item %in% paste0('Item_', 1:10), ]$value = 0
+  pars[pars$name == 'a1' & pars$item %in% paste0('Item_', 1:10), ]$est = FALSE
+  pars[pars$name == 'a2' & pars$item %in% paste0('Item_', 11:20), ]$value = 0
+  pars[pars$name == 'a2' & pars$item %in% paste0('Item_', 11:20), ]$est = FALSE
+  pars[pars$name == 'a3' & pars$item %in% paste0('Item_', 21:30), ]$value = 0
+  pars[pars$name == 'a3' & pars$item %in% paste0('Item_', 21:30), ]$est = FALSE
+}
+
+
+fit =mirt(data1, 
+     ndim, 
+     method = 'EM', 
+     randompars = F, 
+     a_true = a1, 
+     d_true = d1, 
+     theta_true = theta1,
+     pars = pars)
+
+
+
+itempars <- coef(fit, simplify = TRUE)$items
+a <- itempars[,1:(ncol(itempars)-3)]
+d <- itempars[, ncol(itempars)-2]
+theta <- fscores(fit)
+
+for (i in 1:2){
+  if (sum(a[,i])<0){
+    a[,i] = a[,i] * -1 
+    theta[,i] = theta[,i] * -1 
+  }
+}
+
+
+mse <- function(a,b){
+  mean((a-b)^2)
+}
+theta[is.na(theta)]=0
+for (i in 1:2){
+  plot(a1[,i], a[,i], main= paste('Dimension ', i, 'MSE: ', round(mse(a1[,i], a[,i]),4)))
+  plot(theta1[,i], theta[,i], main= paste('Dimension ', i, 'MSE: ', round(mse(theta1[,i], theta[,i]),4)))
+}
+
+plot(d_true[,1], d, main= paste('Dimension ', i, 'MSE: ', round(mse(d, d_true[,1]),4)))
+
+```
+

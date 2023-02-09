@@ -1,9 +1,12 @@
 configs:
   batch_size: 6000
   max_epochs: 5000
-  latent_dims: 3
+  latent_dims: 2
+  hidden_layer_size: 600
+  hidden_layer_size2: 300
+  hidden_layer_size3: 100
   Q_matrix_file: './QMatrix.csv'
   learning_rate: .005
-  min_delta: 0.0000008
-  patience: 100
-  which_data: 'missing'
+  min_delta: 0.00000008
+  patience: 50
+  which_data: 'missing_small'
