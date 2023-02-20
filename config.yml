@@ -1,12 +1,23 @@
 configs:
   batch_size: 6000
-  max_epochs: 5000
-  latent_dims: 2
-  hidden_layer_size: 600
-  hidden_layer_size2: 300
+  max_epochs: 2000
+  mirt_dim: 3
+  hidden_layer_size: 200
+  hidden_layer_size2: 100
   hidden_layer_size3: 100
   Q_matrix_file: './QMatrix.csv'
   learning_rate: .005
   min_delta: 0.00000008
   patience: 50
-  which_data: 'missing_small'
+  which_data: 'missing50large'
+  missing_percentage: .5
+  nitems: 40
+  N: 1000
+  model: 'pvae'
+  single_epoch_test_run: False
+  p_emb_dim: 16
+  p_hidden_dim: 32
+  p_latent_dim: 64
+  p_hidden_layer_dim: 32
+
+

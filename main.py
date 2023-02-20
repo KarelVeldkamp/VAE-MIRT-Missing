@@ -7,6 +7,7 @@ import yaml
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import CSVLogger
+from iwae import IWAE
 
 
 def inv_factors(a, theta=None):
@@ -61,7 +62,7 @@ trainer = Trainer(fast_dev_run=False,
                   callbacks=[EarlyStopping(monitor='train_loss', min_delta=cfg['min_delta'], patience=cfg['patience'], mode='min')])
 Q = a_true != 0
 Q = Q.astype(int)
-vae = VariationalAutoencoder(nitems=data.shape[1],
+vae = IVAE(nitems=data.shape[1],
                              latent_dims=cfg['latent_dims'],
                              hidden_layer_size=cfg['hidden_layer_size'],
                              hidden_layer_size2=cfg['hidden_layer_size2'],
@@ -69,8 +70,7 @@ vae = VariationalAutoencoder(nitems=data.shape[1],
                              qm=Q,
                              learning_rate=cfg['learning_rate'],
                              batch_size=data.shape[0],#cfg['batch_size'],
-                             data_path=f'./data/{cfg["which_data"]}/data.csv',
-                             missing=False)
+                             data_path=f'./data/{cfg["which_data"]}/data.csv')
 trainer.fit(vae)
 
 a_est = vae.decoder.linear.weight.detach().numpy()[:, 0:3]
@@ -78,9 +78,14 @@ d_est = vae.decoder.linear.bias.detach().numpy()
 missing = torch.isnan(data)
 data[missing] = 0
 mask = (~missing).int()
-theta_est = vae.encoder.est_theta(data, missing).detach().numpy()
+_, theta_est, _ = vae.encoder(data)
+theta_est = theta_est.detach().numpy()
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est, theta_est)
+
+print(MSE(a_est, a_true))
+print(MSE(d_est, d_true))
+print(MSE(theta_est, theta_true))
 
 
 # plot training loss
@@ -99,9 +104,6 @@ plt.plot(logs['epoch'], logs['kl_divergence'])
 plt.title('KL Divergence')
 plt.savefig(f'./figures/{cfg["which_data"]}/kl_divergence.png')
 
-
-print(np.mean(theta_est, 0))
-print(np.std(theta_est, 0))
 
 # parameter estimation plot for a
 for dim in range(ndim):
