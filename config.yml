@@ -4,15 +4,15 @@ configs:
   mirt_dim: 3
   hidden_layer_size: 200
   hidden_layer_size2: 100
-  hidden_layer_size3: 100
+  hidden_layer_size3: 50
   Q_matrix_file: './QMatrix.csv'
   learning_rate: .005
   min_delta: 0.00000008
   patience: 50
-  which_data: 'missing50large'
+  which_data: 'missing'
   missing_percentage: .5
-  nitems: 40
-  N: 1000
+  nitems: 400
+  N: 10000
   model: 'pvae'
   single_epoch_test_run: False
   p_emb_dim: 16

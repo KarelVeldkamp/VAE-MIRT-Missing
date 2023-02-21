@@ -62,15 +62,18 @@ trainer = Trainer(fast_dev_run=False,
                   callbacks=[EarlyStopping(monitor='train_loss', min_delta=cfg['min_delta'], patience=cfg['patience'], mode='min')])
 Q = a_true != 0
 Q = Q.astype(int)
-vae = IVAE(nitems=data.shape[1],
-                             latent_dims=cfg['latent_dims'],
+
+dataset = SimDataset(data)
+train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
+vae = CVAE(nitems=data.shape[1],
+                             latent_dims=cfg['mirt_dim'],
                              hidden_layer_size=cfg['hidden_layer_size'],
                              hidden_layer_size2=cfg['hidden_layer_size2'],
                              hidden_layer_size3=cfg['hidden_layer_size3'],
                              qm=Q,
                              learning_rate=cfg['learning_rate'],
                              batch_size=data.shape[0],#cfg['batch_size'],
-                             data_path=f'./data/{cfg["which_data"]}/data.csv')
+                             dataloader=train_loader)
 trainer.fit(vae)
 
 a_est = vae.decoder.linear.weight.detach().numpy()[:, 0:3]
@@ -78,7 +81,7 @@ d_est = vae.decoder.linear.bias.detach().numpy()
 missing = torch.isnan(data)
 data[missing] = 0
 mask = (~missing).int()
-_, theta_est, _ = vae.encoder(data)
+theta_est, _ = vae.encoder(data, mask)
 theta_est = theta_est.detach().numpy()
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est, theta_est)
@@ -93,16 +96,16 @@ logs = pd.read_csv(f'logs/{cfg["which_data"]}/version_0/metrics.csv')
 plt.plot(logs['epoch'], logs['train_loss'])
 plt.title('Training loss')
 plt.savefig(f'./figures/{cfg["which_data"]}/training_loss.png')
-# plot binary cross entropy
-plt.clf()
-plt.plot(logs['epoch'], logs['binary_cross_entropy'])
-plt.title('Binary Cross Entropy')
-plt.savefig(f'./figures/{cfg["which_data"]}/binary_cross_entropy.png')
-# plot KL divergence
-plt.clf()
-plt.plot(logs['epoch'], logs['kl_divergence'])
-plt.title('KL Divergence')
-plt.savefig(f'./figures/{cfg["which_data"]}/kl_divergence.png')
+# # plot binary cross entropy
+# plt.clf()
+# plt.plot(logs['epoch'], logs['binary_cross_entropy'])
+# plt.title('Binary Cross Entropy')
+# plt.savefig(f'./figures/{cfg["which_data"]}/binary_cross_entropy.png')
+# # plot KL divergence
+# plt.clf()
+# plt.plot(logs['epoch'], logs['kl_divergence'])
+# plt.title('KL Divergence')
+# plt.savefig(f'./figures/{cfg["which_data"]}/kl_divergence.png')
 
 
 # parameter estimation plot for a

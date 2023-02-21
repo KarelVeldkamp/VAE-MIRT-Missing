@@ -21,14 +21,17 @@ class ResponseDataset(Dataset):
         x = price_df.iloc[:, 1:].values
 
         self.x_train = torch.tensor(x, dtype=torch.float32)
-        self.x_missing = torch.isnan(self.x_train)
-        self.x_train[torch.isnan(self.x_train)] = 0
+        missing = torch.isnan(self.x_train)
+        self.x_train[missing] = 0
+        self.mask = (~missing).int()
+        self.x_train = self.x_train.to(device)
+        self.mask = self.mask.to(device)
 
     def __len__(self):
         return len(self.x_train)
 
     def __getitem__(self, idx):
-        return self.x_train[idx], self.x_missing[idx]
+        return self.x_train[idx], self.x_mask[idx]
 
 
 class SimDataset(Dataset):
@@ -44,16 +47,42 @@ class SimDataset(Dataset):
 
 
         self.x_train = torch.tensor(X, dtype=torch.float32)
-        self.missing = torch.isnan(self.x_train)
-        self.x_train[self.missing] = 0
+        missing = torch.isnan(self.x_train)
+        self.x_train[missing] = 0
+        self.mask = (~missing).int()
         self.x_train = self.x_train.to(device)
-        self.missing = self.x_missing.to(device)
+        self.mask = self.mask.to(device)
 
     def __len__(self):
         return len(self.x_train)
 
     def __getitem__(self, idx):
-        return self.x_train[idx], self.missing[idx]
+        return self.x_train[idx], self.mask[idx]
+
+class CSVDataset(Dataset):
+    """
+    Torch dataset for item response data in numpy array
+    """
+    def __init__(self, path, device='cpu'):
+        """
+        initialize
+        :param file_name: path to csv that contains NXI matrix of responses from N people to I items
+        """
+        # Read csv and ignore rownames
+
+        X = pd.read_csv(path, index_col=0).values
+        self.x_train = torch.tensor(X, dtype=torch.float32)
+        missing = torch.isnan(self.x_train)
+        self.mask = (~missing).int()
+        self.x_train[self.missing] = 0
+        self.x_train = self.x_train.to(device)
+        self.mask = self.mask.to(device)
+
+    def __len__(self):
+        return len(self.x_train)
+
+    def __getitem__(self, idx):
+        return self.x_train[idx], self.mask[idx]
 
 
 class PartialDataset():
