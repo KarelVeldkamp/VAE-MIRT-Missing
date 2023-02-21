@@ -39,12 +39,14 @@ def MSE(est, true):
     """
     return np.mean(np.power(est-true,2))
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 with open("./config.yml", "r") as f:
     cfg = yaml.safe_load(f)
     cfg = cfg['configs']
 
 # Sample parameter values
-a=np.random.uniform(.5,3,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
+a=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
 if cfg['mirt_dim'] == 1:
     a[0,] = 0
 elif cfg['mirt_dim'] == 2:
@@ -58,7 +60,7 @@ elif cfg['mirt_dim'] == 3:
 Q = (a != 0).astype(int)
 
 theta=np.sort(np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim'])))
-b=np.linspace(-3,3,cfg['nitems'],endpoint=True)   # eqally spaced values between -3 and 3 for the difficulty
+b=np.linspace(-2,2,cfg['nitems'],endpoint=True)   # eqally spaced values between -3 and 3 for the difficulty
 
 # simulate data
 exponent = np.dot(theta,a.T)+b
@@ -132,8 +134,11 @@ trainer.fit(vae)
 
 a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
 d_est = vae.decoder.linear.bias.detach().cpu().numpy()
+vae = vae.to(device)
 
 if cfg['model'] == 'cvae':
+    dataset = SimDataset(X, device)
+    train_loader = DataLoader(dataset, batch_size=X.shape[0], shuffle=False)
     data, mask = next(iter(train_loader))
     theta_est, _ = vae.encoder(data, mask)
     theta_est = theta_est.detach().cpu().numpy()
@@ -141,6 +146,8 @@ elif cfg['model'] == 'ivae':
     theta_est, _ = vae.encoder(vae.data)
     theta_est = theta_est.detach().cpu().numpy()
 elif cfg['model'] == 'pvae':
+    dataset = PartialDataset(X, device)
+    train_loader = DataLoader(dataset, batch_size=X.shape[0], shuffle=False)
     item_ids, ratings, _, _ = next(iter(train_loader))
     theta_est, _ = vae.encoder(item_ids, ratings)
     theta_est = theta_est.detach().cpu().numpy()

@@ -10,7 +10,7 @@ configs:
   min_delta: 0.00000008
   patience: 50
   which_data: 'missing'
-  missing_percentage: .5
+  missing_percentage: .9
   nitems: 400
   N: 10000
   model: 'pvae'
