@@ -7,6 +7,9 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 
 
+
+
+
 class VariationalEncoder(pl.LightningModule):
     """
     Neural network used as encoder
@@ -626,9 +629,8 @@ class IWAE(pl.LightningModule):
         super(IWAE, self).__init__()
         #self.automatic_optimization = False
         self.nitems = nitems
-        self.missing = missing
 
-        self.encoder = Encoder(nitems,
+        self.encoder = ConditionalEncoder(nitems,
                                           latent_dims,
                                           hidden_layer_size,
                                           hidden_layer_size2,

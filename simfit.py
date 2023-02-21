@@ -1,4 +1,5 @@
 from model import *
+from data import *
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,9 +8,10 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import CSVLogger
 from torch.utils.data import DataLoader, Dataset
+from scipy.stats.stats import pearsonr
 
 
-def inv_factors(a, theta=None):
+def inv_factors(a_est, a_true, theta_est=None):
     """
     Helper function that inverts factors when discrimination values are mostly negative this improves the
     interpretability of the solution
@@ -18,12 +20,12 @@ def inv_factors(a, theta=None):
 
         returns: tuple of inverted theta and a paramters
     """
-    totals = np.sum(a, axis=0)
-    a *= totals / np.abs(totals)
-    if theta is not None:
-        theta *= totals / np.abs(totals)
+    for dim in range(a.shape[1]):
+        if pearsonr(a_est[:,dim], a_true[:,dim]).statistic < 0:
+            a_est[:, dim] *= -1
+            theta_est[:, dim] *=-1
 
-    return a, theta
+    return a_est, theta_est
 
 def MSE(est, true):
     """
@@ -128,6 +130,21 @@ if cfg['model'] == 'pvae':
                Q=Q,
                beta=1
     )
+if cfg['model'] == 'iwae':
+    dataset = SimDataset(X)
+    train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
+    vae = IWAE(nitems=X.shape[1],
+               dataloader=train_loader,
+               latent_dims=cfg['mirt_dim'],
+               hidden_layer_size=cfg['hidden_layer_size'],
+               hidden_layer_size2=cfg['hidden_layer_size2'],
+               hidden_layer_size3=cfg['hidden_layer_size3'],
+               qm=Q,
+               learning_rate=cfg['learning_rate'],
+               batch_size=X.shape[0],
+               n_samples=cfg['n_iw_samples']
+
+    )
 
 
 trainer.fit(vae)
@@ -136,7 +153,7 @@ a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
 d_est = vae.decoder.linear.bias.detach().cpu().numpy()
 vae = vae.to(device)
 
-if cfg['model'] == 'cvae':
+if cfg['model'] == 'cvae' or cfg['model'] == 'iwae':
     dataset = SimDataset(X, device)
     train_loader = DataLoader(dataset, batch_size=X.shape[0], shuffle=False)
     data, mask = next(iter(train_loader))
@@ -152,7 +169,7 @@ elif cfg['model'] == 'pvae':
     theta_est, _ = vae.encoder(item_ids, ratings)
     theta_est = theta_est.detach().cpu().numpy()
 # invert factors for increased interpretability
-a_est, theta_est = inv_factors(a_est, theta_est)
+a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 
 print(MSE(a_est, a))
 print(MSE(d_est, b))

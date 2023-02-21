@@ -53,36 +53,36 @@ ndim = a_true.shape[1]
 theta_true = pd.read_csv(f'./data/{cfg["which_data"]}/theta.csv').iloc[:, 1:].values
 d_true = pd.read_csv(f'./data/{cfg["which_data"]}/d.csv').iloc[:, 1:].values
 
-# Sample parameter values
-a_true=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
-if cfg['mirt_dim'] == 1:
-    a_true[0,] = 0
-elif cfg['mirt_dim'] == 2:
-    a_true[0:5, 0] = 0
-    a_true[6:10, 1] = 0
-elif cfg['mirt_dim'] == 3:
-    a_true[0:10, 0] = 0
-    a_true[11:20, 1] = 0
-    a_true[21:30, 2] = 0
-
-Q = (a_true != 0).astype(int)
-
-theta_true=np.sort(np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim'])))
-d_true=np.linspace(-2,2,cfg['nitems'],endpoint=True)   # equally spaced values between -3 and 3 for the difficulty
-
-# simulate data
-exponent = np.dot(theta_true, a_true.T)+d_true
-prob = np.exp(exponent)/(1+np.exp(exponent))
-data = np.random.binomial(1, prob).astype(float)
-
-
-
-# introduce missingness
-s_miss=np.random.randint(cfg['N'],size=int(np.floor(cfg['missing_percentage']*cfg['N']*cfg['nitems'])))
-
-i_miss=np.random.randint(cfg['nitems'],size=int(np.floor(cfg['missing_percentage']*cfg['N']*cfg['nitems'])))
-data[s_miss,i_miss]=float('nan')
-data = torch.Tensor(data)
+# # Sample parameter values
+# a_true=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
+# if cfg['mirt_dim'] == 1:
+#     a_true[0,] = 0
+# elif cfg['mirt_dim'] == 2:
+#     a_true[0:5, 0] = 0
+#     a_true[6:10, 1] = 0
+# elif cfg['mirt_dim'] == 3:
+#     a_true[0:10, 0] = 0
+#     a_true[11:20, 1] = 0
+#     a_true[21:30, 2] = 0
+#
+# Q = (a_true != 0).astype(int)
+#
+# theta_true=np.sort(np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim'])))
+# d_true=np.linspace(-2,2,cfg['nitems'],endpoint=True)   # equally spaced values between -3 and 3 for the difficulty
+#
+# # simulate data
+# exponent = np.dot(theta_true, a_true.T)+d_true
+# prob = np.exp(exponent)/(1+np.exp(exponent))
+# data = np.random.binomial(1, prob).astype(float)
+#
+#
+#
+# # introduce missingness
+# s_miss=np.random.randint(cfg['N'],size=int(np.floor(cfg['missing_percentage']*cfg['N']*cfg['nitems'])))
+#
+# i_miss=np.random.randint(cfg['nitems'],size=int(np.floor(cfg['missing_percentage']*cfg['N']*cfg['nitems'])))
+# data[s_miss,i_miss]=float('nan')
+# data = torch.Tensor(data)
 
 
 # initialise model and optimizer
