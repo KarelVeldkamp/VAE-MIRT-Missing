@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.nn.utils.prune
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
+from data import *
 
 
 
@@ -204,12 +205,9 @@ class PartialEncoder(pl.LightningModule):
         self.h_dense2 = nn.Linear(h_hidden_dim, latent_dim)
 
 
-        self.dense1 = nn.Linear(latent_dim*5, hidden_layer_dim)
+        self.dense1 = nn.Linear(latent_dim, hidden_layer_dim)
         self.dense3m = nn.Linear(hidden_layer_dim, mirt_dim)
         self.dense3s = nn.Linear(hidden_layer_dim, mirt_dim)
-
-        self.N = torch.distributions.Normal(0, 1)
-        self.kl = 0
 
     def forward(self, item_ids: np.array, item_ratings: torch.Tensor) -> torch.Tensor:
         """
@@ -227,12 +225,12 @@ class PartialEncoder(pl.LightningModule):
         out = F.elu(self.h_dense1(S))
         out = F.elu(self.h_dense2(out))
         mean = torch.mean(out, 1)
-        median = torch.quantile(out, .5, 1)
-        sd = torch.std(out, 1)
-        q25 = torch.quantile(out, .25, 1)
-        q75 = torch.quantile(out, .75, 1)
-        dist = torch.cat([mean, median, sd, q25, q75], dim=1)
-        hidden = F.relu(self.dense1(dist))
+        #median = torch.quantile(out, .5, 1)
+        #sd = torch.std(out, 1)
+        #q25 = torch.quantile(out, .25, 1)
+        #q75 = torch.quantile(out, .75, 1)
+        #dist = torch.cat([mean, median, sd, q25, q75], dim=1)
+        hidden = F.relu(self.dense1(mean))
         mu = self.dense3m(hidden)
         log_sigma = self.dense3s(hidden)
 
@@ -275,7 +273,6 @@ class Decoder(pl.LightningModule):
         """
         out = self.linear(x)
         out = self.activation(out)
-
         return out
 
 
@@ -322,8 +319,96 @@ class ConditionalDecoder(pl.LightningModule):
         out = self.linear(x)
 
         out = self.activation(out)
-
         return out
+
+
+class VAE(pl.LightningModule):
+    """
+    Neural network for the entire variational autoencoder
+    """
+    def __init__(self,
+                 dataloader,
+                 nitems: int,
+                 latent_dims: int,
+                 hidden_layer_size: int,
+                 hidden_layer_size2: int,
+                 qm: torch.Tensor,
+                 learning_rate: float,
+                 batch_size: int,
+                 beta: int = 1):
+        """
+        Initialisaiton
+        :param latent_dims: number of latent dimensions
+        :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
+        """
+        super(VAE, self).__init__()
+        #self.automatic_optimization = False
+        self.nitems = nitems
+        self.dataloader = dataloader
+
+        self.encoder = Encoder(nitems,
+                               latent_dims,
+                               hidden_layer_size,
+                               hidden_layer_size2
+        )
+
+        self.sampler = SamplingLayer()
+
+        self.decoder = Decoder(nitems, latent_dims, qm)
+
+        self.lr = learning_rate
+        self.batch_size = batch_size
+        self.beta = beta
+        self.kl=0
+
+    def forward(self, x: torch.Tensor, m: torch.Tensor=None):
+        """
+        forward pass though the entire network
+        :param x: tensor representing response data
+        :param m: mask representing which data is missing
+        :return: tensor representing a reconstruction of the input response data
+        """
+        mu, log_sigma = self.encoder(x)
+        z = self.sampler(mu, log_sigma)
+        reco = self.decoder(z)
+
+        # calcualte kl divergence
+        kl = 1 + 2 * log_sigma - torch.square(mu) - torch.exp(2 * log_sigma)
+        kl = torch.sum(kl, dim=-1)
+        self.kl = -.5 * torch.mean(kl)
+        return reco
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=self.lr, amsgrad=True)
+
+    def training_step(self, batch, batch_idx):
+        # forward pass
+
+        data, mask = batch
+        X_hat = self(data)
+
+        # calculate the likelihood, and take the mean of all non missing elements
+        # bce = data * torch.log(X_hat) + (1 - data) * torch.log(1 - X_hat)
+        # bce = bce*mask
+        # bce = -self.nitems * torch.mean(bce, 1)
+        # bce = bce / torch.mean(mask.float(),1)
+
+        bce = torch.nn.functional.binary_cross_entropy(X_hat, batch[0], reduction='none')
+        bce = torch.mean(bce)  * self.nitems
+        bce = bce / torch.mean(mask.float())
+
+        # sum the likelihood and the kl divergence
+
+        #loss = torch.mean((bce + self.encoder.kl))
+        loss = bce + self.beta * self.kl
+        #self.log('binary_cross_entropy', bce)
+        #self.log('kl_divergence', self.encoder.kl)
+        self.log('train_loss',loss)
+
+        return {'loss': loss}
+
+    def train_dataloader(self):
+        return self.dataloader
 
 
 class CVAE(pl.LightningModule):
@@ -430,7 +515,6 @@ class IVAE(pl.LightningModule):
                  learning_rate: float,
                  batch_size: int,
                  beta: int = 1,
-                 s_miss=None,
                  i_miss=None,
                  data=None):
         """
@@ -457,12 +541,11 @@ class IVAE(pl.LightningModule):
         self.data = torch.Tensor(data)
 
         # initialize missing values with (random) reconstruction based on decoder
-        self.s_miss = s_miss
         self.i_miss = i_miss
         with torch.no_grad():
             z =torch.distributions.Normal(0, 1).sample([10000,latent_dims])
             gen_data = self.decoder(z)
-            self.data[self.s_miss, self.i_miss] = gen_data[self.s_miss, self.i_miss]
+            self.data[np.unravel_index(self.i_miss, self.data.shape)] = gen_data[np.unravel_index(self.i_miss, self.data.shape)]
 
         self.lr = learning_rate
         self.batch_size = batch_size
@@ -498,7 +581,7 @@ class IVAE(pl.LightningModule):
             z = self.sampler(mu, log_sigma)
             gen_data = self.decoder(z)
 
-            self.data[self.s_miss, self.i_miss] = gen_data[self.s_miss, self.i_miss]
+            self.data[np.unravel_index(self.i_miss, self.data.shape)] = gen_data[np.unravel_index(self.i_miss, self.data.shape)]
 
 
         X_hat = self(self.data)
@@ -521,7 +604,7 @@ class IVAE(pl.LightningModule):
     def train_dataloader(self):
         dataset = SimDataset(self.data)
         train_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
-        return self.train_loader
+        return train_loader
 
 
 class PVAE(pl.LightningModule):
@@ -568,7 +651,7 @@ class PVAE(pl.LightningModule):
     def forward(self, item_ids, ratings):
         """
         forward pass though the entire network
-        :param user_ids: tensor representing user ids
+        :param item_ids: tensor representing user ids
         :param ratings: tensor represeting ratings
         :return: tensor representing a reconstruction of the input response data
         """
@@ -576,7 +659,7 @@ class PVAE(pl.LightningModule):
         z = self.sampler(mu, log_sigma)
         reco = self.decoder(z)
 
-        # calcualte kl divergence
+        # calculate kl divergence
         kl = 1 + 2 * log_sigma - torch.square(mu) - torch.exp(2 * log_sigma)
         kl = torch.sum(kl, dim=-1)
         self.kl = -.5 * torch.mean(kl)
@@ -595,7 +678,8 @@ class PVAE(pl.LightningModule):
         bce = bce / torch.mean(mask.float())
 
         # sum the likelihood and the kl divergence
-        loss = bce + self.beta * self.encoder.kl
+        loss = bce + self.beta * self.kl
+
         self.log('binary_cross_entropy', bce)
         self.log('kl_divergence', self.kl)
         self.log('train_loss', loss)

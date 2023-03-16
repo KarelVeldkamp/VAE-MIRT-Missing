@@ -53,6 +53,10 @@ ndim = a_true.shape[1]
 theta_true = pd.read_csv(f'./data/{cfg["which_data"]}/theta.csv').iloc[:, 1:].values
 d_true = pd.read_csv(f'./data/{cfg["which_data"]}/d.csv').iloc[:, 1:].values
 
+# introduce missingness
+indices = np.random.choice(data.shape[0]*data.shape[1], replace=False, size=int(data.shape[0]*data.shape[1]*cfg['missing_percentage']))
+data[np.unravel_index(indices, data.shape)] = float('nan')
+
 # # Sample parameter values
 # a_true=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
 # if cfg['mirt_dim'] == 1:
@@ -78,12 +82,9 @@ d_true = pd.read_csv(f'./data/{cfg["which_data"]}/d.csv').iloc[:, 1:].values
 #
 #
 # # introduce missingness
-# s_miss=np.random.randint(cfg['N'],size=int(np.floor(cfg['missing_percentage']*cfg['N']*cfg['nitems'])))
-#
-# i_miss=np.random.randint(cfg['nitems'],size=int(np.floor(cfg['missing_percentage']*cfg['N']*cfg['nitems'])))
-# data[s_miss,i_miss]=float('nan')
+# indices = np.random.choice(data.shape[0]*data.shape[1], replace=False, size=int(data.shape[0]*data.shape[1]*cfg['missing_percentage']))
+# data[np.unravel_index(indices, data.shape)] = float('nan')
 # data = torch.Tensor(data)
-
 
 # initialise model and optimizer
 logger = CSVLogger("logs", name=cfg['which_data'], version=0)
@@ -94,17 +95,19 @@ trainer = Trainer(fast_dev_run=False,
 Q = a_true != 0
 Q = Q.astype(int)
 
-dataset = SimDataset(data)
+dataset = PartialDataset(data)
 train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
-vae = CVAE(nitems=data.shape[1],
-                             latent_dims=cfg['mirt_dim'],
-                             hidden_layer_size=cfg['hidden_layer_size'],
-                             hidden_layer_size2=cfg['hidden_layer_size2'],
-                             hidden_layer_size3=cfg['hidden_layer_size3'],
-                             qm=Q,
-                             learning_rate=cfg['learning_rate'],
-                             batch_size=data.shape[0],#cfg['batch_size'],
-                             dataloader=train_loader)
+vae = PVAE(dataloader=train_loader,
+           nitems=cfg['nitems'],
+           learning_rate=cfg['learning_rate'],
+           batch_size=data.shape[0],
+           emb_dim=cfg['p_emb_dim'],
+           h_hidden_dim=cfg['p_hidden_dim'],
+           latent_dim=cfg['p_latent_dim'],
+           hidden_layer_dim=cfg['p_hidden_layer_dim'],
+           mirt_dim=cfg['mirt_dim'],
+           Q=Q,
+           beta=1)
 trainer.fit(vae)
 
 a_est = vae.decoder.linear.weight.detach().numpy()[:, 0:3]
@@ -112,7 +115,7 @@ d_est = vae.decoder.linear.bias.detach().numpy()
 missing = torch.isnan(torch.Tensor(data))
 data[missing] = 0
 mask = (~missing).int()
-theta_est, _ = vae.encoder(data, mask)
+theta_est, _ = vae.encoder(data)#, mask)
 theta_est = theta_est.detach().numpy()
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est, theta_est)
