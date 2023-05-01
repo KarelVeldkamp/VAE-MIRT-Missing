@@ -11,8 +11,11 @@ from torch.utils.data import DataLoader, Dataset
 from scipy.stats.stats import pearsonr
 import sys
 import time
+import os
 
-
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
 
 
 def inv_factors(a_est, a_true, theta_est=None):
@@ -60,12 +63,15 @@ with open("./config.yml", "r") as f:
     cfg = yaml.safe_load(f)
     cfg = cfg['configs']
 
+single = False
 if len(sys.argv) > 1:
     cfg['N'] = int(sys.argv[1])
     cfg['nitems'] = int(sys.argv[2])
     iteration = int(sys.argv[4])
     cfg['missing_percentage'] = float(sys.argv[3])
     cfg['model'] = sys.argv[5]
+    if len(sys.argv) > 6:
+        single = True
 
 # Sample parameter values
 #a=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
@@ -82,18 +88,22 @@ if len(sys.argv) > 1:
 a = np.array(pd.read_csv('./parameters/atrue.csv', header=0, index_col=0).values)
 d = np.array(pd.read_csv('./parameters/dtrue.csv', header=0, index_col=0).values)
 
-Q = pd.read_csv('./parameters/QMatrix.csv', header=None).values
-print(Q.shape)
-print(a.shape)
-#a *= Q
-
-Q = (a != 0).astype(int)
-
 theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
 b=np.linspace(-2,2,cfg['nitems'],endpoint=True)   # eqally spaced values between -3 and 3 for the difficulty
 
-# simulate data
-exponent = np.dot(theta,a.T)+b
+Q = pd.read_csv('./parameters/atrue.csv', header=None).values
+Q = (a!=0).astype(int)
+
+
+if single:
+    a = np.linspace(.5,2, cfg['nitems'], endpoint=True)
+    a = np.expand_dims(a, 1)
+    theta = np.random.normal(0,1,cfg['N'])
+    exponent = np.outer(theta, a)+b
+    Q = None
+else:
+    exponent = np.dot(theta, a.T)+b
+
 prob = np.exp(exponent)/(1+np.exp(exponent))
 data = np.random.binomial(1, prob).astype(float)
 
@@ -225,7 +235,7 @@ mse_theta = f'{MSE(theta_est, theta)}\n'
 lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
 
 if len(sys.argv) > 1:
-    with open(f"./results/{cfg['model']}_{cfg['N']}_{cfg['missing_percentage']}_{iteration}.txt", 'w') as f:
+    with open(f"../results/{cfg['model']}_{cfg['N']}_{cfg['missing_percentage']}_{iteration}.txt", 'w') as f:
         f.writelines([mse_a, mse_d, mse_theta, lll, str(runtime)])
 else:
     # plot training loss

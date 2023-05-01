@@ -1,7 +1,7 @@
 configs:
   # general optimization parameters:
   batch_size: 6000
-  max_epochs: 1000
+  max_epochs: 20000
   learning_rate: .005
   min_delta: 0.00000008
   patience: 50
