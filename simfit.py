@@ -28,7 +28,6 @@ def inv_factors(a_est, a_true, theta_est=None):
         returns: tuple of inverted theta and a paramters
     """
     for dim in range(a_est.shape[1]):
-        print(pearsonr(a_est[:,dim], a_true[:,dim]).statistic)
         if pearsonr(a_est[:,dim], a_true[:,dim]).statistic < 0:
             a_est[:, dim] *= -1
             theta_est[:, dim] *=-1
@@ -63,15 +62,14 @@ with open("./config.yml", "r") as f:
     cfg = yaml.safe_load(f)
     cfg = cfg['configs']
 
-single = False
+
 if len(sys.argv) > 1:
     cfg['N'] = int(sys.argv[1])
     cfg['nitems'] = int(sys.argv[2])
     iteration = int(sys.argv[4])
     cfg['missing_percentage'] = float(sys.argv[3])
     cfg['model'] = sys.argv[5]
-    if len(sys.argv) > 6:
-        single = True
+
 
 # Sample parameter values
 #a=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
@@ -94,8 +92,7 @@ b=np.linspace(-2,2,cfg['nitems'],endpoint=True)   # eqally spaced values between
 Q = pd.read_csv('./parameters/atrue.csv', header=None).values
 Q = (a!=0).astype(int)
 
-
-if single:
+if cfg['mirt_dim'] ==1:
     a = np.linspace(.5,2, cfg['nitems'], endpoint=True)
     a = np.expand_dims(a, 1)
     theta = np.random.normal(0,1,cfg['N'])
@@ -225,6 +222,8 @@ elif cfg['model'] == 'pvae':
     theta_est, _ = vae.encoder(item_ids, ratings)
 
 theta_est = theta_est.detach().cpu().numpy()
+if cfg['mirt_dim'] == 1:
+    theta = np.expand_dims(theta, 1)
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 
@@ -234,15 +233,25 @@ mse_theta = f'{MSE(theta_est, theta)}\n'
 
 lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
 
+# When run with command line arguments, save results to file
 if len(sys.argv) > 1:
     with open(f"../results/{cfg['model']}_{cfg['N']}_{cfg['missing_percentage']}_{iteration}.txt", 'w') as f:
         f.writelines([mse_a, mse_d, mse_theta, lll, str(runtime)])
+
+# otherwise, print results and plot figures
 else:
+    # print results
+    print(mse_a)
+    print(mse_d)
+    print(mse_theta)
+
     # plot training loss
     logs = pd.read_csv(f'logs/simfit/version_0/metrics.csv')
     plt.plot(logs['epoch'], logs['train_loss'])
     plt.title('Training loss')
     plt.savefig(f'./figures/simfit/training_loss.png')
+
+
     # plot binary cross entropy
     # plt.clf()
     # plt.plot(logs['epoch'], logs['binary_cross_entropy'])

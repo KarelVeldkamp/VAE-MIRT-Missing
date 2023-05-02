@@ -12,7 +12,7 @@ configs:
   N: 10000
   # General model parameters:
   model: 'vae'
-  mirt_dim: 3
+  mirt_dim: 1
   hidden_layer_size: 40
   hidden_layer_size2: 20
   # parameters when model=='pvae':
