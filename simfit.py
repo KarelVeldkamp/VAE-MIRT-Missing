@@ -137,6 +137,19 @@ if cfg['model'] == 'cvae':
                batch_size=data.shape[0]
 
     )
+elif cfg['model'] == 'idvae':
+    dataset = SimDataset(data)
+    train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
+    vae = IDVAE(nitems=data.shape[1],
+               dataloader=train_loader,
+               latent_dims=cfg['mirt_dim'],
+               hidden_layer_size=cfg['hidden_layer_size'],
+               hidden_layer_size2=cfg['hidden_layer_size2'],
+               qm=Q,
+               learning_rate=cfg['learning_rate'],
+               batch_size=data.shape[0]
+
+    )
 elif cfg['model'] == 'ivae':
 
     vae = IVAE(nitems=data.shape[1],
@@ -203,12 +216,12 @@ a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
 d_est = vae.decoder.linear.bias.detach().cpu().numpy()
 vae = vae.to(device)
 
-if cfg['model'] == 'cvae' or cfg['model'] == 'iwae':
+if cfg['model'] in ['cvae', 'iwae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     data, mask = next(iter(train_loader))
     theta_est, _ = vae.encoder(data, mask)
-elif cfg['model'] == 'vae':
+elif cfg['model'] in ['idvae', 'vae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     data, mask = next(iter(train_loader))
