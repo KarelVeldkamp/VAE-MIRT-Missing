@@ -1,5 +1,4 @@
 library(mirt)
-print(getwd())
 args = commandArgs(trailingOnly=TRUE)
 N = as.numeric(args[1])
 ndim=as.numeric(args[4])
@@ -26,6 +25,8 @@ if (sparsity>0){
 # initialize paramters
 print('initializing pars...')
 pars <- mirt(data1,ndim, pars = 'values', technical = list())
+pars[pars$name=='a3' & pars$item == 'Item_28', ]$value = 1
+pars[pars$name=='a3' & pars$item == 'Item_28', ]$est = TRUE
 if (ndim > 1){
 	for (dim in 1:3){
  		for (item in 1:28){
@@ -36,6 +37,7 @@ if (ndim > 1){
     }
   }
 }
+
 start = Sys.time()
 fit =mirt(data1, 
           ndim, 
@@ -58,7 +60,11 @@ if (ndim>1){
     }
   }
 }
-
+par(mfrow=c(1,1))
+plot(a1, a)
+text(a1, a, 1:28)
+lines(0:10, 0:10)
+mse(a1, a)
 
 mse <- function(a,b){
   mean((a-b)^2)
@@ -81,3 +87,6 @@ print(msea)
 fileConn<-file(paste0('./results/mirt_', as.character(N),'_',as.character(sparsity), '_', as.character(args[3]), '.txt'))
 writeLines(c(as.character(msea), as.character(msed), as.character(mset), as.character(lll), as.character(runtime)), fileConn)
 close(fileConn)
+
+
+

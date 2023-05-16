@@ -210,7 +210,7 @@ else:
 start = time.time()
 trainer.fit(vae)
 runtime = time.time()-start
-
+print(runtime)
 
 a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
 d_est = vae.decoder.linear.bias.detach().cpu().numpy()
