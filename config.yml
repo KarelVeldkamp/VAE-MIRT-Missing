@@ -1,10 +1,10 @@
 configs:
   # general optimization parameters:
   batch_size: 6000
-  max_epochs: 20000
+  max_epochs: 1000
   learning_rate: .005
-  min_delta: 0.00000008
-  patience: 50
+  min_delta: 0.0000008
+  patience: 30
   single_epoch_test_run: False
   # data simulation parameters:
   missing_percentage: 0.5

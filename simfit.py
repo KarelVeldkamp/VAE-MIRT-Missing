@@ -28,7 +28,7 @@ def inv_factors(a_est, a_true, theta_est=None):
         returns: tuple of inverted theta and a paramters
     """
     for dim in range(a_est.shape[1]):
-        if pearsonr(a_est[:,dim], a_true[:,dim]).statistic < 0:
+        if pearsonr(a_est[:,dim], a_true[:,dim])[0] < 0:
             a_est[:, dim] *= -1
             theta_est[:, dim] *=-1
 
@@ -69,6 +69,9 @@ if len(sys.argv) > 1:
     iteration = int(sys.argv[4])
     cfg['missing_percentage'] = float(sys.argv[3])
     cfg['model'] = sys.argv[5]
+
+if len(sys.argv) == 6:
+    cfg['batch_size'] = int(sys.argv[6])
 
 
 # Sample parameter values
@@ -248,7 +251,7 @@ lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
 
 # When run with command line arguments, save results to file
 if len(sys.argv) > 1:
-    with open(f"../results/{cfg['model']}_{cfg['N']}_{cfg['missing_percentage']}_{iteration}.txt", 'w') as f:
+    with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
         f.writelines([mse_a, mse_d, mse_theta, lll, str(runtime)])
 
 # otherwise, print results and plot figures

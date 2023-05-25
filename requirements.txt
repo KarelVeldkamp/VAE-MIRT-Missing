@@ -3,4 +3,7 @@ pytorch_lightning
 scipy
 numpy
 pandas
-yaml
+pytorch-lightning
+pandas
+scipy
+matplotlib
