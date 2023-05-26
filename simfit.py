@@ -34,7 +34,7 @@ if len(sys.argv) > 1:
     cfg["iteration"] = int(sys.argv[4])
     cfg['model'] = sys.argv[5]
 
-if len(sys.argv) == 6:
+if len(sys.argv) > 6:
     cfg['batch_size'] = int(sys.argv[6])
 
 # simulate data
@@ -54,12 +54,18 @@ if cfg['simulate']:
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
 else:
-    data = pd.read_csv(f'./data/simulated/data_{cfg["iteration"]}.csv', index_col=0).to_numpy()
-
+    data = pd.read_csv(f'./data/simulated/data_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    a = pd.read_csv(f'./parameters/simulated/a_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    b = pd.read_csv(f'./parameters/simulated/b_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    Q = pd.read_csv('./parameters/QMatrix.csv', header=None).values
+    print(a.shape)
 # potentially save data to disk
 if cfg['save']:
     np.savetxt(f'./data/simulated/data_{cfg["iteration"]}.csv', data, delimiter=",")
-
+    np.savetxt(f'./parameters/simulated/a_{cfg["iteration"]}.csv', a, delimiter=",")
+    np.savetxt(f'./parameters/simulated/b_{cfg["iteration"]}.csv', b, delimiter=",")
+    np.savetxt(f'./parameters/simulated/theta_{cfg["iteration"]}.csv', theta, delimiter=",")
 
 # introduce missingness
 np.random.seed(cfg['iteration'])
