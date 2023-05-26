@@ -1,5 +1,6 @@
 from model import *
 from data import *
+from helpers import *
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,106 +9,60 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import CSVLogger
 from torch.utils.data import DataLoader, Dataset
-from scipy.stats.stats import pearsonr
 import sys
 import time
 import os
 
+# set working directory to source file location
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-
-def inv_factors(a_est, a_true, theta_est=None):
-    """
-    Helper function that inverts factors when discrimination values are mostly negative this improves the
-    interpretability of the solution
-        theta: NxP matrix of theta estimates
-        a: IxP matrix of a estimates
-
-        returns: tuple of inverted theta and a paramters
-    """
-    for dim in range(a_est.shape[1]):
-        if pearsonr(a_est[:,dim], a_true[:,dim])[0] < 0:
-            a_est[:, dim] *= -1
-            theta_est[:, dim] *=-1
-
-    return a_est, theta_est
-
-def MSE(est, true):
-    """
-    Mean square error
-    Parameters
-    ----------
-    est: estimated parameter values
-    true: true paremters values
-
-    Returns
-    -------
-    the MSE
-    """
-    return np.mean(np.power(est-true,2))
-
-def loglikelihood(a, d, theta, data):
-    exponent = np.matmul(theta, a.T) + d
-    prob = np.exp(exponent) / (1 + np.exp(exponent))
-
-    lll = np.sum(np.log(prob * data + (1-prob)*(1-data)))
-
-    return lll
-
+# set device to gpu if available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+# load configurations
 with open("./config.yml", "r") as f:
     cfg = yaml.safe_load(f)
     cfg = cfg['configs']
 
-
+# overwrite configurations if command line arguments are provided
 if len(sys.argv) > 1:
     cfg['N'] = int(sys.argv[1])
     cfg['nitems'] = int(sys.argv[2])
-    iteration = int(sys.argv[4])
     cfg['missing_percentage'] = float(sys.argv[3])
+    cfg["iteration"] = int(sys.argv[4])
     cfg['model'] = sys.argv[5]
 
 if len(sys.argv) == 6:
     cfg['batch_size'] = int(sys.argv[6])
 
-
-# Sample parameter values
-#a=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
-#if cfg['mirt_dim'] == 1:
-#    a[0,] = 0
-#elif cfg['mirt_dim'] == 2:
-#    a[0:5, 0] = 0
-#    a[6:10, 1] = 0
-#elif cfg['mirt_dim'] == 3:
-#    a[0:10, 0] = 0
-#    a[11:20, 1] = 0
-#    a[21:30, 2] = 0
-
-a = np.array(pd.read_csv('./parameters/atrue.csv', header=0, index_col=0).values)
-d = np.array(pd.read_csv('./parameters/dtrue.csv', header=0, index_col=0).values)
-
-theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
-b=np.linspace(-2,2,cfg['nitems'],endpoint=True)   # eqally spaced values between -3 and 3 for the difficulty
-
-Q = pd.read_csv('./parameters/atrue.csv', header=None).values
-Q = (a!=0).astype(int)
-
-if cfg['mirt_dim'] ==1:
-    a = np.linspace(.5,2, cfg['nitems'], endpoint=True)
-    a = np.expand_dims(a, 1)
-    theta = np.random.normal(0,1,cfg['N'])
-    exponent = np.outer(theta, a)+b
-    Q = None
+# simulate data
+if cfg['simulate']:
+    theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
+    b=np.linspace(-2,2,cfg['nitems'],endpoint=True)   # eqally spaced values between -2 and 2 for the difficulty
+    a=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
+    Q = pd.read_csv('./parameters/QMatrix.csv', header=None).values
+    if cfg['mirt_dim'] == 3:
+        exponent = np.dot(theta, a.T) + b
+        a *= Q
+    elif cfg['mirt_dim'] == 1:
+        a = np.expand_dims(a, 1)
+        exponent = np.outer(theta, a) + b
+    else:
+        raise Exception('Code only implemented for 1 and 3 dimesnional models')
+    prob = np.exp(exponent) / (1 + np.exp(exponent))
+    data = np.random.binomial(1, prob).astype(float)
 else:
-    exponent = np.dot(theta, a.T)+b
+    data = pd.read_csv(f'./data/simulated/data_{cfg["iteration"]}.csv', index_col=0).to_numpy()
 
-prob = np.exp(exponent)/(1+np.exp(exponent))
-data = np.random.binomial(1, prob).astype(float)
+# potentially save data to disk
+if cfg['save']:
+    np.savetxt(f'./data/simulated/data_{cfg["iteration"]}.csv', data, delimiter=",")
+
 
 # introduce missingness
+np.random.seed(cfg['iteration'])
 indices = np.random.choice(data.shape[0]*data.shape[1], replace=False, size=int(data.shape[0]*data.shape[1]*cfg['missing_percentage']))
 data[np.unravel_index(indices, data.shape)] = float('nan')
 data = torch.Tensor(data)
