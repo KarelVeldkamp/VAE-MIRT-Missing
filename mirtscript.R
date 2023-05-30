@@ -4,11 +4,10 @@ N = as.numeric(args[1])
 ndim=as.numeric(args[4])
 Nit=28
 sparsity = as.numeric(args[2])
-theta1 <- matrix(rnorm(N*ndim), ncol=ndim)
-#d1 <- matrix(runif(Nit, -2, 2))
-#a1 <- matrix(runif(Nit*ndim,.5,2), ncol=ndim)
-d1 = as.matrix(read.csv('./MIRT-VAE-Qmatrix/parameters/dtrue.csv', row.names=1))
-a1 = as.matrix(read.csv('./MIRT-VAE-Qmatrix/parameters/atrue.csv', row.names=1))[,1:ndim]
+theta1 <- as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/theta_', iteration, '.csv'), header=F))
+d1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/b_', iteration, '.csv'), header=F))
+a1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/a_', iteration, '.csv'), header=F))[,1:ndim]
+data1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/data/simulated/data_', iteration, '.csv'), header=F))
 
 if (ndim>1){
 	Q = read.csv('./MIRT-VAE-Qmatrix/parameters/QMatrix.csv', header=F)[,1:ndim]
@@ -16,34 +15,41 @@ if (ndim>1){
 #a1 = a1*as.matrix(Q)
 
 
-print('simulating data...')
-data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
+#print('simulating data...')
+#data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
 if (sparsity>0){
 	data1[sample(length(data1), length(data1)*sparsity, replace = FALSE)] <- NA
 }
 
 # initialize paramters
-print('initializing pars...')
-pars <- mirt(data1,ndim, pars = 'values', technical = list())
-pars[pars$name=='a3' & pars$item == 'Item_28', ]$value = 1
-pars[pars$name=='a3' & pars$item == 'Item_28', ]$est = TRUE
-if (ndim > 1){
-	for (dim in 1:3){
- 		for (item in 1:28){
-    			if (Q[item, dim] == 0){
-     				pars[pars$name == paste0('a', dim) & pars$item == paste0('Item_', item), ]$value = 0
-      				pars[pars$name == paste0('a', dim) & pars$item == paste0('Item_', item), ]$est = FALSE
-      }
-    }
-  }
+#print('initializing pars...')
+#pars <- mirt(data1,ndim, pars = 'values', technical = list())
+#pars[pars$name=='a3' & pars$item == 'Item_28', ]$value = 1
+#pars[pars$name=='a3' & pars$item == 'Item_28', ]$est = TRUE
+#if (ndim > 1){
+#	for (dim in 1:3){
+# 		for (item in 1:28){
+#    			if (Q[item, dim] == 0){
+#     				pars[pars$name == paste0('a', dim) & pars$item == paste0('Item_', item), ]$value = 0
+#      				pars[pars$name == paste0('a', dim) & pars$item == paste0('Item_', item), ]$est = FALSE
+#      }
+#    }
+#  }
+#}
+if (ndim == 1){
+  model = ndim
+}else {
+  model='
+    f1=1,3,7,10,11,12,13,14,16,20,21,25,27,28
+    f2=1,2,8,17,23,24
+    f3=3,4,5,6,7,9,11,12,15,16,17,18,19,20,21,22,26,28'
 }
 
 start = Sys.time()
 fit =mirt(data1, 
-          ndim, 
+          model, 
           method = 'EM', 
-          randompars = F,
-          pars = pars,
+          randompars = T,
 	  technical=list(NCYCLES=1000))
 runtime = as.numeric(difftime(Sys.time(), start, units='secs'))
 itempars <- coef(fit, simplify = TRUE)$items
@@ -60,11 +66,6 @@ if (ndim>1){
     }
   }
 }
-par(mfrow=c(1,1))
-plot(a1, a)
-text(a1, a, 1:28)
-lines(0:10, 0:10)
-mse(a1, a)
 
 mse <- function(a,b){
   mean((a-b)^2)
@@ -84,7 +85,7 @@ lll = logLik(fit)
 
 print(msea)
 
-fileConn<-file(paste0('./results/mirt_', as.character(N),'_',as.character(sparsity), '_', as.character(args[3]), '.txt'))
+fileConn<-file(paste0('./results/', paste(args, collapse='_')))
 writeLines(c(as.character(msea), as.character(msed), as.character(mset), as.character(lll), as.character(runtime)), fileConn)
 close(fileConn)
 
