@@ -1,9 +1,11 @@
 library(mirt)
 args = commandArgs(trailingOnly=TRUE)
 N = as.numeric(args[1])
-ndim=as.numeric(args[4])
-Nit=28
-sparsity = as.numeric(args[2])
+iteration=as.numeric(args[4])
+model = args[5]
+Nit=as.numeric(args[2])
+ndim=3
+sparsity = as.numeric(args[3])
 theta1 <- as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/theta_', iteration, '.csv'), header=F))
 d1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/b_', iteration, '.csv'), header=F))
 a1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/a_', iteration, '.csv'), header=F))[,1:ndim]
