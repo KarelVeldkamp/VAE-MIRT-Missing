@@ -44,8 +44,8 @@ if cfg['simulate']:
     a=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
     Q = pd.read_csv('./parameters/QMatrix.csv', header=None).values
     if cfg['mirt_dim'] == 3:
-        exponent = np.dot(theta, a.T) + b
         a *= Q
+        exponent = np.dot(theta, a.T) + b
     elif cfg['mirt_dim'] == 1:
         a = np.expand_dims(a, 1)
         exponent = np.outer(theta, a) + b
