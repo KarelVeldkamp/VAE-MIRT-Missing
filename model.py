@@ -205,9 +205,9 @@ class PartialEncoder(pl.LightningModule):
         self.h_dense2 = nn.Linear(h_hidden_dim, latent_dim)
 
 
-        self.dense1 = nn.Linear(latent_dim, hidden_layer_dim)
-        self.dense3m = nn.Linear(hidden_layer_dim, mirt_dim)
-        self.dense3s = nn.Linear(hidden_layer_dim, mirt_dim)
+        self.dense1 = nn.Linear(latent_dim*5, hidden_layer_dim*2)
+        self.dense3m = nn.Linear(hidden_layer_dim*2, mirt_dim)
+        self.dense3s = nn.Linear(hidden_layer_dim*2, mirt_dim)
 
     def forward(self, item_ids: np.array, item_ratings: torch.Tensor) -> torch.Tensor:
         """
@@ -225,12 +225,12 @@ class PartialEncoder(pl.LightningModule):
         out = F.elu(self.h_dense1(S))
         out = F.elu(self.h_dense2(out))
         mean = torch.mean(out, 1)
-        #median = torch.quantile(out, .5, 1)
-        #sd = torch.std(out, 1)
-        #q25 = torch.quantile(out, .25, 1)
-        #q75 = torch.quantile(out, .75, 1)
-        #dist = torch.cat([mean, median, sd, q25, q75], dim=1)
-        hidden = F.relu(self.dense1(mean))
+        median = torch.quantile(out, .5, 1)
+        sd = torch.std(out, 1)
+        q25 = torch.quantile(out, .25, 1)
+        q75 = torch.quantile(out, .75, 1)
+        dist = torch.cat([mean, median, sd, q25, q75], dim=1)
+        hidden = F.relu(self.dense1(dist))
         mu = self.dense3m(hidden)
         log_sigma = self.dense3s(hidden)
 

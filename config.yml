@@ -14,7 +14,7 @@ configs:
   N: 10000
   iteration: 1
   # General model parameters:
-  model: 'idvae'
+  model: 'pvae'
   mirt_dim: 3
   hidden_layer_size: 40
   hidden_layer_size2: 20
