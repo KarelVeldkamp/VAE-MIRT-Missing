@@ -115,7 +115,6 @@ elif cfg['model'] == 'idvae':
 
     )
 elif cfg['model'] == 'ivae':
-
     vae = IVAE(nitems=data.shape[1],
                data=data,
                latent_dims=cfg['mirt_dim'],

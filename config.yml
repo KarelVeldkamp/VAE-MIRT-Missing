@@ -1,28 +1,28 @@
 configs:
   # general optimization parameters:
-  batch_size: 1000
-  max_epochs: 1000
+  batch_size: 10000
+  max_epochs: 4000
   learning_rate: .005
-  min_delta: 0.0000008
+  min_delta: 0.00000008
   patience: 30
   single_epoch_test_run: False
   # data simulation parameters:
-  simulate: False
+  simulate: True
   save: False
-  missing_percentage: 0
+  missing_percentage: 0.6
   nitems: 28
   N: 10000
   iteration: 1
   # General model parameters:
-  model: 'pvae'
+  model: 'ivae'
   mirt_dim: 3
   hidden_layer_size: 40
   hidden_layer_size2: 20
   # parameters when model=='pvae':
-  p_emb_dim: 32
-  p_hidden_dim: 32
-  p_latent_dim: 32
-  p_hidden_layer_dim: 32
+  p_emb_dim: 12
+  p_hidden_dim: 24
+  p_latent_dim: 24
+  p_hidden_layer_dim: 24
   # parameters when model=='iwae':
   n_iw_samples: 5
   # parameters when model=='cvae':

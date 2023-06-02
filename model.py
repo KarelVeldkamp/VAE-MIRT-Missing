@@ -635,6 +635,8 @@ class IVAE(pl.LightningModule):
             gen_data = self.decoder(z)
             self.data[np.unravel_index(self.i_miss, self.data.shape)] = gen_data[np.unravel_index(self.i_miss, self.data.shape)]
 
+        self.mask = torch.ones(self.data.shape)
+        self.mask[np.unravel_index(self.i_miss, self.data.shape)] = 0
         self.lr = learning_rate
         self.batch_size = batch_size
         self.beta = beta
@@ -670,15 +672,14 @@ class IVAE(pl.LightningModule):
 
             self.data[np.unravel_index(self.i_miss, self.data.shape)] = gen_data[np.unravel_index(self.i_miss, self.data.shape)]
 
-
         X_hat = self(self.data)
 
         # calculate the likelihood, and take the mean of all non missing elements
-        bce = torch.nn.functional.binary_cross_entropy(X_hat, self.data, reduction='none')
+        bce = torch.nn.functional.binary_cross_entropy(X_hat, self.data, reduction='none') * self.mask
         #bce = -self.nitems * torch.mean(self.data * torch.log(X_hat) + (1 - self.data) * torch.log(1 - X_hat), 1)
 
         bce = torch.mean(bce)  * self.nitems
-        #bce = bce / torch.mean(self.mask.float())
+        bce = bce / torch.mean(self.mask.float())
         loss = bce + self.beta * self.kl
         # sum the likelihood and the kl divergence
         #loss = torch.mean(bce + self.encoder.kl)
