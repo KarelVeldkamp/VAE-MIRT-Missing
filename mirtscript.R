@@ -40,7 +40,7 @@ if (sparsity>0){
 #}
 if (ndim == 1){
   model = ndim
-}else {
+}else{
   model='
     f1=1,3,7,10,11,12,13,14,16,20,21,25,27,28
     f2=1,2,8,17,23,24

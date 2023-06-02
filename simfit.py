@@ -85,6 +85,8 @@ logger = CSVLogger("logs", name='simfit', version=0)
 trainer = Trainer(fast_dev_run=cfg['single_epoch_test_run'],
                   max_epochs=cfg['max_epochs'],
                   logger=logger,
+                  enable_checkpointing=False, 
+                  logger=False, 
                   callbacks=[EarlyStopping(monitor='train_loss', min_delta=cfg['min_delta'], patience=cfg['patience'], mode='min')])
 
 if cfg['model'] == 'cvae':
