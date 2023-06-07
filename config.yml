@@ -10,12 +10,12 @@ configs:
   simulate: True
   save: False
   missing_percentage: 0.6
-  nitems: 28
+  nitems: 110
   N: 10000
   iteration: 1
   # General model parameters:
   model: 'ivae'
-  mirt_dim: 3
+  mirt_dim: 10
   hidden_layer_size: 40
   hidden_layer_size2: 20
   # parameters when model=='pvae':
