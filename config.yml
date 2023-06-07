@@ -16,7 +16,7 @@ configs:
   # General model parameters:
   model: 'ivae'
   mirt_dim: 10
-  hidden_layer_size: 40
+  hidden_layer_size: 30
   hidden_layer_size2: 20
   # parameters when model=='pvae':
   p_emb_dim: 12
@@ -26,6 +26,6 @@ configs:
   # parameters when model=='iwae':
   n_iw_samples: 5
   # parameters when model=='cvae':
-  hidden_layer_size3: 50
+  hidden_layer_size3: 10
   # onlyy for main
   which_data: 'dylan'

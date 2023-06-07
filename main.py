@@ -103,8 +103,8 @@ elif cfg['model'] == 'idvae':
     vae = IDVAE(nitems=data.shape[1],
                dataloader=train_loader,
                latent_dims=cfg['mirt_dim'],
-               hidden_layer_size=cfg['hidden_layer_size'],
-               hidden_layer_size2=cfg['hidden_layer_size2'],
+               hidden_layer_size=cfg['hidden_layer_size2'],
+               hidden_layer_size2=cfg['hidden_layer_size3'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0]
@@ -114,8 +114,8 @@ elif cfg['model'] == 'ivae':
     vae = IVAE(nitems=data.shape[1],
                data=data,
                latent_dims=cfg['mirt_dim'],
-               hidden_layer_size=cfg['hidden_layer_size'],
-               hidden_layer_size2=cfg['hidden_layer_size2'],
+               hidden_layer_size=cfg['hidden_layer_size2'],
+               hidden_layer_size2=cfg['hidden_layer_size3'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],#cfg['batch_size']
@@ -156,8 +156,8 @@ elif cfg['model'] == 'vae':
     vae = VAE(nitems=data.shape[1],
                dataloader=train_loader,
                latent_dims=cfg['mirt_dim'],
-               hidden_layer_size=cfg['hidden_layer_size'],
-               hidden_layer_size2=cfg['hidden_layer_size2'],
+               hidden_layer_size=cfg['hidden_layer_size2'],
+               hidden_layer_size2=cfg['hidden_layer_size3'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0]
