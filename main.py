@@ -29,21 +29,23 @@ with open("./config.yml", "r") as f:
 # overwrite configurations if command line arguments are provided
 if len(sys.argv) > 1:
     cfg['N'] = int(sys.argv[1])
-    cfg['nitems'] = int(sys.argv[2])
-    cfg['missing_percentage'] = float(sys.argv[3])
-    cfg["iteration"] = int(sys.argv[4])
-    cfg['model'] = sys.argv[5]
+    cfg['missing_percentage'] = float(sys.argv[2])
+    cfg["iteration"] = int(sys.argv[3])
+    cfg['model'] = sys.argv[4]
 
 if len(sys.argv) > 6:
-    cfg['batch_size'] = int(sys.argv[6])
+    cfg['batch_size'] = int(sys.argv[5])
 
 # simulate data
 if cfg['simulate']:
     theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
-    b=np.linspace(-2,2,cfg['nitems'],endpoint=True)   # eqally spaced values between -2 and 2 for the difficulty
-    a=np.random.uniform(.5,2,cfg['nitems']*cfg['mirt_dim']).reshape((cfg['nitems'],cfg['mirt_dim']))      # draw discrimination parameters from uniform distribution
     Q = pd.read_csv(f'parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+
+    a = np.random.uniform(.5, 2, Q.shape[0] * cfg['mirt_dim']).reshape((Q.shape[0], cfg['mirt_dim']))  # draw discrimination parameters from uniform distribution
+    print(Q.shape)
+    print(a.shape)
     a *= Q
+    b = np.linspace(-2, 2, Q.shape[0], endpoint=True)  # eqally spaced values between -2 and 2 for the difficulty
     exponent = np.dot(theta, a.T) + b
 
     prob = np.exp(exponent) / (1 + np.exp(exponent))
@@ -125,7 +127,7 @@ elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data)
     train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
     vae = PVAE(dataloader=train_loader,
-               nitems=cfg['nitems'],
+               nitems=Q.shape[0],
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],
                emb_dim=cfg['p_emb_dim'],
