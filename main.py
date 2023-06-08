@@ -176,7 +176,6 @@ a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
 d_est = vae.decoder.linear.bias.detach().cpu().numpy()
 vae = vae.to(device)
 
-print(1)
 if cfg['model'] in ['cvae', 'iwae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
@@ -195,15 +194,13 @@ elif cfg['model'] == 'pvae':
     item_ids, ratings, _, _ = next(iter(train_loader))
     theta_est, _ = vae.encoder(item_ids, ratings)
 
-print(2)
-
 
 theta_est = theta_est.detach().cpu().numpy()
 if cfg['mirt_dim'] == 1:
     theta = np.expand_dims(theta, 1)
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
-print(3)
+
 mse_a = f'{MSE(a_est, a)}\n'
 mse_d = f'{MSE(d_est, b)}\n'
 mse_theta = f'{MSE(theta_est, theta)}\n'
