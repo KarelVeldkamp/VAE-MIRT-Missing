@@ -32,9 +32,10 @@ if len(sys.argv) > 1:
     cfg['missing_percentage'] = float(sys.argv[2])
     cfg["iteration"] = int(sys.argv[3])
     cfg['model'] = sys.argv[4]
+    cfg['mirt_dim'] = int(sys.argv[5])
 
 if len(sys.argv) > 6:
-    cfg['batch_size'] = int(sys.argv[5])
+    cfg['batch_size'] = int(sys.argv[6])
 
 # simulate data
 if cfg['simulate']:
@@ -42,8 +43,6 @@ if cfg['simulate']:
     Q = pd.read_csv(f'parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
 
     a = np.random.uniform(.5, 2, Q.shape[0] * cfg['mirt_dim']).reshape((Q.shape[0], cfg['mirt_dim']))  # draw discrimination parameters from uniform distribution
-    print(Q.shape)
-    print(a.shape)
     a *= Q
     b = np.linspace(-2, 2, Q.shape[0], endpoint=True)  # eqally spaced values between -2 and 2 for the difficulty
     exponent = np.dot(theta, a.T) + b
@@ -177,6 +176,7 @@ a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
 d_est = vae.decoder.linear.bias.detach().cpu().numpy()
 vae = vae.to(device)
 
+print(1)
 if cfg['model'] in ['cvae', 'iwae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
@@ -195,12 +195,15 @@ elif cfg['model'] == 'pvae':
     item_ids, ratings, _, _ = next(iter(train_loader))
     theta_est, _ = vae.encoder(item_ids, ratings)
 
+print(2)
+
+
 theta_est = theta_est.detach().cpu().numpy()
 if cfg['mirt_dim'] == 1:
     theta = np.expand_dims(theta, 1)
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
-
+print(3)
 mse_a = f'{MSE(a_est, a)}\n'
 mse_d = f'{MSE(d_est, b)}\n'
 mse_theta = f'{MSE(theta_est, theta)}\n'
@@ -211,7 +214,6 @@ lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
 if len(sys.argv) > 1:
     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
         f.writelines([mse_a, mse_d, mse_theta, lll, str(runtime)])
-
 # otherwise, print results and plot figures
 else:
     # print results
