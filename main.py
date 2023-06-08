@@ -50,18 +50,18 @@ if cfg['simulate']:
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
 else:
-    data = pd.read_csv(f'./data/simulated/data_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
-    a = pd.read_csv(f'./parameters/simulated/a_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
-    b = pd.read_csv(f'./parameters/simulated/b_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
-    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
-    Q = pd.read_csv('parameters/QMatrix3D.csv', header=None).values
+    data = pd.read_csv(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    b = pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    Q = pd.read_csv(f'./parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
 
 # potentially save data to disk
 if cfg['save']:
-    np.savetxt(f'./data/simulated/data_{cfg["iteration"]}.csv', data, delimiter=",")
-    np.savetxt(f'./parameters/simulated/a_{cfg["iteration"]}.csv', a, delimiter=",")
-    np.savetxt(f'./parameters/simulated/b_{cfg["iteration"]}.csv', b, delimiter=",")
-    np.savetxt(f'./parameters/simulated/theta_{cfg["iteration"]}.csv', theta, delimiter=",")
+    np.savetxt(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', data, delimiter=",")
+    np.savetxt(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', a, delimiter=",")
+    np.savetxt(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', b, delimiter=",")
+    np.savetxt(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', theta, delimiter=",")
 
 # introduce missingness
 np.random.seed(cfg['iteration'])
