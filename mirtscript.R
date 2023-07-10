@@ -1,21 +1,20 @@
 library(mirt)
 args = commandArgs(trailingOnly=TRUE)
 N = as.numeric(args[1])
-iteration=as.numeric(args[4])
-model = args[5]
-Nit=as.numeric(args[2])
-ndim=3
-sparsity = as.numeric(args[3])
-theta1 <- as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/theta_', iteration, '.csv'), header=F))
-d1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/b_', iteration, '.csv'), header=F))
-a1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/a_', iteration, '.csv'), header=F))[,1:ndim]
-data1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/data/simulated/data_', iteration, '.csv'), header=F))
+sparsity = as.numeric(args[2])
+iteration=as.numeric(args[3])
+model = args[4]
+ndim= as.numeric(args[5])
+theta1 <- as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/theta_',ndim, '_',  iteration, '.csv'), header=F))
+d1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/b_', ndim, '_', iteration, '.csv'), header=F))
+a1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/a_', ndim, '_', iteration, '.csv'), header=F))[,1:ndim]
+data1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/data/simulated/data_', ndim, '_', iteration, '.csv'), header=F))
 
 if (ndim>1){
-	Q = read.csv('./MIRT-VAE-Qmatrix/parameters/QMatrix.csv', header=F)[,1:ndim]
+	Q = read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/QMatrix', ndim, 'D.csv'), header=F)[,1:ndim]
 }
 #a1 = a1*as.matrix(Q)
-
+Nit = nrow(Q)
 
 #print('simulating data...')
 #data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
