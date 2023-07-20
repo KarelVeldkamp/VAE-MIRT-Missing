@@ -7,7 +7,7 @@ configs:
   patience: 30
   single_epoch_test_run: False
   # data simulation parameters:
-  simulate: False
+  simulate: True
   save: False
   missing_percentage: 0.6
   N: 10000
@@ -17,6 +17,7 @@ configs:
   mirt_dim: 10
   hidden_layer_size: 30
   hidden_layer_size2: 20
+  beta: 1
   # parameters when model=='pvae':
   p_emb_dim: 12
   p_hidden_dim: 24

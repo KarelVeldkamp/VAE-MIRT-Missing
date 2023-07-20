@@ -95,7 +95,8 @@ if cfg['model'] == 'cvae':
                hidden_layer_size3=cfg['hidden_layer_size3'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0]
+               batch_size=data.shape[0],
+               beta=cfg['beta']
 
     )
 elif cfg['model'] == 'idvae':
@@ -108,7 +109,8 @@ elif cfg['model'] == 'idvae':
                hidden_layer_size2=cfg['hidden_layer_size3'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0]
+               batch_size=data.shape[0],
+               beta=cfg['beta']
 
     )
 elif cfg['model'] == 'ivae':
@@ -121,6 +123,7 @@ elif cfg['model'] == 'ivae':
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],#cfg['batch_size']
                i_miss=indices,
+               beta=cfg['beta']
     )
 elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data)
@@ -135,7 +138,7 @@ elif cfg['model'] == 'pvae':
                hidden_layer_dim=cfg['p_hidden_layer_dim'],
                mirt_dim=cfg['mirt_dim'],
                Q=Q,
-               beta=1
+               beta=cfg['beta']
     )
 elif cfg['model'] == 'iwae':
     dataset = SimDataset(data)
@@ -149,7 +152,8 @@ elif cfg['model'] == 'iwae':
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],
-               n_samples=cfg['n_iw_samples']
+               n_samples=cfg['n_iw_samples'],
+               beta=cfg['beta']
     )
 elif cfg['model'] == 'vae':
     dataset = SimDataset(data)
@@ -161,7 +165,8 @@ elif cfg['model'] == 'vae':
                hidden_layer_size2=cfg['hidden_layer_size3'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0]
+               batch_size=data.shape[0],
+               beta=cfg['beta']
 
     )
 else:
