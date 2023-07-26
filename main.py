@@ -34,9 +34,6 @@ if len(sys.argv) > 1:
     cfg['model'] = sys.argv[4]
     cfg['mirt_dim'] = int(sys.argv[5])
 
-if len(sys.argv) > 6:
-    cfg['batch_size'] = int(sys.argv[6])
-
 # simulate data
 if cfg['simulate']:
     theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
@@ -185,22 +182,24 @@ if cfg['model'] in ['cvae', 'iwae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     data, mask = next(iter(train_loader))
-    theta_est, _ = vae.encoder(data, mask)
+    theta_est, log_sigma_est  = vae.encoder(data, mask)
 elif cfg['model'] in ['idvae', 'vae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     data, mask = next(iter(train_loader))
-    theta_est, _ = vae.encoder(data)
+    theta_est, log_sigma_est = vae.encoder(data)
 elif cfg['model'] == 'ivae':
-    theta_est, _ = vae.encoder(vae.data)
+    theta_est, log_sigma_est = vae.encoder(vae.data)
 elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     item_ids, ratings, _, _ = next(iter(train_loader))
-    theta_est, _ = vae.encoder(item_ids, ratings)
+    theta_est, log_sigma_est = vae.encoder(item_ids, ratings)
 
-
+sigma_est = torch.exp(log_sigma_est)
 theta_est = theta_est.detach().cpu().numpy()
+sigma_est = sigma_est.detach().cpu().numpy()
+
 if cfg['mirt_dim'] == 1:
     theta = np.expand_dims(theta, 1)
 # invert factors for increased interpretability
@@ -211,11 +210,15 @@ mse_d = f'{MSE(d_est, b)}\n'
 mse_theta = f'{MSE(theta_est, theta)}\n'
 
 lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
+runtime = f'{runtime}\n'
+ms = f'{np.mean(sigma_est)}\n'
+ss = f'{np.std(sigma_est)}\n'
 
 # When run with command line arguments, save results to file
 if len(sys.argv) > 1:
     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
-        f.writelines([mse_a, mse_d, mse_theta, lll, str(runtime)])
+        f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss])
+
 # otherwise, print results and plot figures
 else:
     # print results

@@ -5,7 +5,7 @@ configs:
   learning_rate: .005
   min_delta: 0.00000008
   patience: 30
-  single_epoch_test_run: False
+  single_epoch_test_run: True
   # data simulation parameters:
   simulate: True
   save: False
@@ -13,8 +13,8 @@ configs:
   N: 10000
   iteration: 1
   # General model parameters:
-  model: 'ivae'
-  mirt_dim: 10
+  model: 'cvae'
+  mirt_dim: 3
   hidden_layer_size: 30
   hidden_layer_size2: 20
   beta: 1
