@@ -1,1 +1,0 @@
-{"name": "VAE_IAF_Config", "input_dim": [1, 28], "latent_dim": 3, "uses_default_encoder": false, "uses_default_decoder": false, "reconstruction_loss": "bce", "n_made_blocks": 2, "n_hidden_in_made": 3, "hidden_size": 128}

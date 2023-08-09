@@ -12,9 +12,7 @@ def inv_factors(a_est, a_true, theta_est=None):
         returns: tuple of inverted theta and a paramters
     """
     for dim in range(a_est.shape[1]):
-        print(pearsonr(a_est[:, dim], a_true[:, dim])[0])
         if pearsonr(a_est[:,dim], a_true[:,dim])[0] < 0:
-            print(f'flipping dimension {dim}')
             a_est[:, dim] *= -1
             theta_est[:, dim] *=-1
 
