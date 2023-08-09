@@ -173,9 +173,10 @@ start = time.time()
 trainer.fit(vae)
 runtime = time.time()-start
 print(runtime)
-
-a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
-d_est = vae.decoder.linear.bias.detach().cpu().numpy()
+a_est = vae.decoder.weights.t().detach().numpy()
+d_est = vae.decoder.bias.t().detach().numpy()
+#a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
+#d_est = vae.decoder.linear.bias.detach().cpu().numpy()
 vae = vae.to(device)
 
 if cfg['model'] in ['cvae', 'iwae']:
@@ -199,6 +200,8 @@ elif cfg['model'] == 'pvae':
 sigma_est = torch.exp(log_sigma_est)
 theta_est = theta_est.detach().cpu().numpy()
 sigma_est = sigma_est.detach().cpu().numpy()
+
+print(f'sigma means: {sigma_est.mean(0)}')
 
 if cfg['mirt_dim'] == 1:
     theta = np.expand_dims(theta, 1)

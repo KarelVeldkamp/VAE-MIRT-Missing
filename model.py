@@ -250,30 +250,42 @@ class Decoder(pl.LightningModule):
         """
         super().__init__()
 
-        # initialise netowrk components
         input_layer = latent_dims
-        self.linear = nn.Linear(input_layer, nitems)
+        self.weights = nn.Parameter(torch.zeros((input_layer, nitems)))  # Manually created weight matrix
+        self.bias = nn.Parameter(torch.zeros(nitems))  # Manually created bias vector
         self.activation = nn.Sigmoid()
+        self.qm = torch.Tensor(qm).t()
 
-        # remove edges between latent dimensions and items that have a zero in the Q-matrix
-        if qm is not None:
-            msk_wts = torch.ones((nitems, input_layer), dtype=torch.float32)
-            for row in range(qm.shape[0]):
-                for col in range(qm.shape[1]):
-                    if qm[row, col] == 0:
-                        msk_wts[row][col] = 0
-            torch.nn.utils.prune.custom_from_mask(self.linear, name='weight', mask=msk_wts)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass though the network
-        :param x: tensor representing a sample from the latent dimensions
-        :param m: mask representing which data is missing
-        :return: tensor representing reconstructed item responses
-        """
-        out = self.linear(x)
+    def forward(self, x: torch.Tensor):
+        pruned_weights = self.weights * self.qm
+        out = torch.matmul(x, pruned_weights) + self.bias
         out = self.activation(out)
+
         return out
+        # initialise netowrk components
+        # #input_layer = latent_dims
+        # self.linear = nn.Linear(input_layer, nitems)
+        # self.activation = nn.Sigmoid()
+        #
+        # # remove edges between latent dimensions and items that have a zero in the Q-matrix
+        # if qm is not None:
+        #     msk_wts = torch.ones((nitems, input_layer), dtype=torch.float32)
+        #     for row in range(qm.shape[0]):
+        #         for col in range(qm.shape[1]):
+        #             if qm[row, col] == 0:
+        #                 msk_wts[row][col] = 0
+        #     torch.nn.utils.prune.custom_from_mask(self.linear, name='weight', mask=msk_wts)
+
+    # def forward(self, x: torch.Tensor) -> torch.Tensor:
+    #     """
+    #     Forward pass though the network
+    #     :param x: tensor representing a sample from the latent dimensions
+    #     :param m: mask representing which data is missing
+    #     :return: tensor representing reconstructed item responses
+    #     """
+    #     out = self.linear(x)
+    #     out = self.activation(out)
+    #     return out
 
 
 class ConditionalDecoder(pl.LightningModule):
@@ -464,6 +476,7 @@ class IDVAE(pl.LightningModule):
         # calculate kl divergence
         kl = 1 + 2 * log_sigma - torch.square(mu) - torch.exp(2 * log_sigma)
         kl = torch.sum(kl, dim=-1)
+
         self.kl = -.5 * torch.mean(kl)
         return reco
 
@@ -750,6 +763,7 @@ class PVAE(pl.LightningModule):
         # calculate kl divergence
         kl = 1 + 2 * log_sigma - torch.square(mu) - torch.exp(2 * log_sigma)
         kl = torch.sum(kl, dim=-1)
+
         self.kl = -.5 * torch.mean(kl)
         return reco
 

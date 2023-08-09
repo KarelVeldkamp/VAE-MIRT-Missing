@@ -2,3 +2,6 @@
 /parameters/simulated/
 /figures/**
 /logs/**
+
+# supyter notebooks
+*.ipynb
