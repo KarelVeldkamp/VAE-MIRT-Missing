@@ -2,6 +2,7 @@
 /parameters/simulated/
 /figures/**
 /logs/**
+/mymodel/
 
 # supyter notebooks
 *.ipynb
