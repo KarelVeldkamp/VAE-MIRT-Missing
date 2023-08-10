@@ -17,6 +17,10 @@ import time
 import sys
 from pythae.models import AutoModel
 
+# set working directory to source file location
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
 
 model_type = sys.argv[1]
 iteration = sys.argv[2]
@@ -157,8 +161,7 @@ pipeline(
 runtime = time.time() -start
 
 # load trained model
-last_training = sorted(os.listdir(f'my_model/{model_type}/'))[-1]
-trained_model = AutoModel.load_from_folder(os.path.join(f'my_model/{model_type}', last_training, 'final_model'))
+trained_model = model
 
 # compute theta estimates
 z = trained_model.encoder(data)[0]

@@ -7,3 +7,4 @@ pytorch-lightning
 pandas
 scipy
 matplotlib
+pythae
