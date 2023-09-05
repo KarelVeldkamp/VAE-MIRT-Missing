@@ -209,8 +209,15 @@ if cfg['mirt_dim'] == 1:
 a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 
 mse_a = f'{MSE(a_est, a)}\n'
+bias_a = f'{np.mean(a_est-a)}'
 mse_d = f'{MSE(d_est, b)}\n'
+bias_d = f'{np.mean(d_est-b)}'
 mse_theta = f'{MSE(theta_est, theta)}\n'
+bias_theta = f'{np.mean(theta_est-theta)}'
+
+print(bias_a)
+print(bias_d)
+print(bias_theta)
 
 lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
 runtime = f'{runtime}\n'
@@ -220,7 +227,7 @@ ss = f'{np.std(sigma_est)}\n'
 # When run with command line arguments, save results to file
 if len(sys.argv) > 1:
     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
-        f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss])
+        f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss, bias_a, bias_d, bias_theta])
 
 # otherwise, print results and plot figures
 else:
