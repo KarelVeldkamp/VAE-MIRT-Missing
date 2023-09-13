@@ -254,7 +254,10 @@ class Decoder(pl.LightningModule):
         self.weights = nn.Parameter(torch.zeros((input_layer, nitems)))  # Manually created weight matrix
         self.bias = nn.Parameter(torch.zeros(nitems))  # Manually created bias vector
         self.activation = nn.Sigmoid()
-        self.qm = torch.Tensor(qm).t()
+        if qm is None:
+            self.qm = torch.ones((latent_dims, nitems))
+        else:
+            self.qm = torch.Tensor(qm).t()
 
     def forward(self, x: torch.Tensor):
         pruned_weights = self.weights * self.qm

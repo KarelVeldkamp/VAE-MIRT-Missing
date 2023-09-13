@@ -32,6 +32,9 @@ def MSE(est, true):
     """
     return np.mean(np.power(est-true,2))
 
+def bias(est, true):
+    return (est - true).mean()
+
 def loglikelihood(a, d, theta, data):
     """
     Log likelihood for an MIRT model

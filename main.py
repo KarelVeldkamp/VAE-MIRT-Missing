@@ -201,7 +201,6 @@ sigma_est = torch.exp(log_sigma_est)
 theta_est = theta_est.detach().cpu().numpy()
 sigma_est = sigma_est.detach().cpu().numpy()
 
-print(f'sigma means: {sigma_est.mean(0)}')
 
 if cfg['mirt_dim'] == 1:
     theta = np.expand_dims(theta, 1)
@@ -210,14 +209,15 @@ a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 
 mse_a = f'{MSE(a_est, a)}\n'
 bias_a = f'{np.mean(a_est-a)}\n'
+var_a = f'{np.var(a_est-a)}\n'
 mse_d = f'{MSE(d_est, b)}\n'
 bias_d = f'{np.mean(d_est-b)}\n'
+var_d = f'{np.var(d_est-b)}\n'
 mse_theta = f'{MSE(theta_est, theta)}\n'
 bias_theta = f'{np.mean(theta_est-theta)}\n'
+var_theta = f'{np.var(theta_est-theta)}\n'
 
-print(bias_a)
-print(bias_d)
-print(bias_theta)
+
 
 lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
 runtime = f'{runtime}\n'
@@ -227,15 +227,10 @@ ss = f'{np.std(sigma_est)}\n'
 # When run with command line arguments, save results to file
 if len(sys.argv) > 1:
     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
-        f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss, bias_a, bias_d, bias_theta])
+        f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss, bias_a, bias_d, bias_theta, var_a, var_d, var_theta])
 
 # otherwise, print results and plot figures
 else:
-    # print results
-    print(mse_a)
-    print(mse_d)
-    print(mse_theta)
-
     # plot training loss
     logs = pd.read_csv(f'logs/simfit/version_0/metrics.csv')
     plt.plot(logs['epoch'], logs['train_loss'])
