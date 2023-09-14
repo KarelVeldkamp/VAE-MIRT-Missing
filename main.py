@@ -36,16 +36,12 @@ if len(sys.argv) > 1:
 
 # simulate data
 if cfg['simulate']:
-    # theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
-    # Q = pd.read_csv(f'parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
-    #
-    # a = np.random.uniform(.5, 2, Q.shape[0] * cfg['mirt_dim']).reshape((Q.shape[0], cfg['mirt_dim']))  # draw discrimination parameters from uniform distribution
-    # a *= Q
-    # b = np.linspace(-2, 2, Q.shape[0], endpoint=True)  # eqally spaced values between -2 and 2 for the difficulty
-    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{1}.csv', header=None, index_col=False).to_numpy()
-    b = pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{1}.csv', header=None, index_col=False).to_numpy()
-    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{1}.csv', header=None, index_col=False).to_numpy()
-    Q = pd.read_csv(f'./parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+    theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
+    Q = pd.read_csv(f'parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+
+    a = np.random.uniform(.5, 2, Q.shape[0] * cfg['mirt_dim']).reshape((Q.shape[0], cfg['mirt_dim']))  # draw discrimination parameters from uniform distribution
+    a *= Q
+    b = np.linspace(-2, 2, Q.shape[0], endpoint=True)  # eqally spaced values between -2 and 2 for the difficulty
 
     exponent = np.dot(theta, a.T) + b
 
