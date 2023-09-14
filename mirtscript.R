@@ -8,7 +8,9 @@ ndim= as.numeric(args[5])
 theta1 <- as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/theta_',ndim, '_',  iteration, '.csv'), header=F))
 d1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/b_', ndim, '_', iteration, '.csv'), header=F))
 a1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/a_', ndim, '_', iteration, '.csv'), header=F))[,1:ndim]
-data1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/data/simulated/data_', ndim, '_', iteration, '.csv'), header=F))
+#data1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/data/simulated/data_', ndim, '_', iteration, '.csv'), header=F))
+
+data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
 
 if (ndim>1){
 	Q = read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/QMatrix', ndim, 'D.csv'), header=F)[,1:ndim]
@@ -51,7 +53,7 @@ fit =mirt(data1,
           model, 
           method = 'EM', 
           randompars = T,
-	  technical=list(NCYCLES=1000))
+	  technical=list())
 runtime = as.numeric(difftime(Sys.time(), start, units='secs'))
 itempars <- coef(fit, simplify = TRUE)$items
 a <- itempars[,1:(ncol(itempars)-3)]
@@ -79,26 +81,48 @@ theta[is.na(theta)]=0
 
 #plot(d1[,1], d, main= paste('Dimension ', i, 'MSE: ', round(mse(d, d1[,1]),4)))
 
-msea=mse(a1, a)
-biasa=mean(a1-a)
-vara=var(a1)
-msed=mse(d1, d)
-biasd=mean(d1-d)
-vard=var(d1)
-mset=mse(theta1, theta)
-biast=mean(theta1-theta)
-vart=var(theta1)
-lll = logLik(fit)
+# msea=mse(a1, a)
+# biasa=mean(a1-a)
+# vara=var(a1)
+# msed=mse(d1, d)
+# biasd=mean(d1-d)
+# vard=var(d1)
+# mset=mse(theta1, theta)
+# biast=mean(theta1-theta)
+# vart=var(theta1)
+# lll = logLik(fit)
+# 
+# print(msea)
+# 
+# fileConn<-file(paste0('./results/', paste(args, collapse='_')))
+# writeLines(c(as.character(msea), as.character(msed), as.character(mset), 
+#              as.character(lll), as.character(runtime), 
+#              as.character(biasa), as.character(biasd), as.character(biast), 
+#              as.character(vara), as.character(vard), as.character(vart)),
+#            fileConn)
+# close(fileConn)
 
-print(msea)
+par = c()
+value = c()
+estimates = list(theta, a, as.matrix(d))
+par_names = c('theta', 'a', 'd')
+for (i in 1:3){
+  est = estimates[[i]]
+  print(i)
+  for (r in 1:nrow(est)){
+    for (c in 1:ncol(est)){
+      par = c(par, paste(par_names[i], r, c, sep='_'))
+      value = c(value, est[r, c])
+    }
+  }
+}
 
-fileConn<-file(paste0('./results/', paste(args, collapse='_')))
-writeLines(c(as.character(msea), as.character(msed), as.character(mset), 
-             as.character(lll), as.character(runtime), 
-             as.character(biasa), as.character(biasd), as.character(biast), 
-             as.character(vara), as.character(vard), as.character(vart)),
-           fileConn)
-close(fileConn)
+results = data_frame('N' = N,
+                     'missing' = sparsity,
+                     'iteration'=iteration,
+                     'model' = model,
+                     'mirt_dim'= ndim,
+                     'par'=par,
+                     'value'=value)
 
-
-
+write.csv(results, file = paste0("../results/", paste(args, sep='_'), ".csv"))

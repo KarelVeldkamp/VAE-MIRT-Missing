@@ -62,7 +62,6 @@ else:
 
 # potentially save data to disk
 if cfg['save']:
-    np.savetxt(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', data, delimiter=",")
     np.savetxt(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', a, delimiter=",")
     np.savetxt(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', b, delimiter=",")
     np.savetxt(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', theta, delimiter=",")
@@ -250,10 +249,6 @@ if len(sys.argv) > 1:
 
     result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
 
-    result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
-                           'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'value': value})
-
-    result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
 # otherwise, print results and plot figures
 else:
     # plot training loss
