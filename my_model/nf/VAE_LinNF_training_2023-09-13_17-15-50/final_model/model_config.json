@@ -1,1 +1,0 @@
-{"name": "VAE_LinNF_Config", "input_dim": [1, 30], "latent_dim": 1, "uses_default_encoder": false, "uses_default_decoder": false, "reconstruction_loss": "bce", "flows": ["Planar", "Planar", "Planar", "Planar", "Planar", "Planar", "Planar", "Planar", "Planar", "Planar"]}
