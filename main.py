@@ -209,13 +209,13 @@ a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 
 mse_a = f'{MSE(a_est, a)}\n'
 bias_a = f'{np.mean(a_est-a)}\n'
-var_a = f'{np.var(a_est-a)}\n'
+var_a = f'{np.var(a_est)}\n'
 mse_d = f'{MSE(d_est, b)}\n'
 bias_d = f'{np.mean(d_est-b)}\n'
-var_d = f'{np.var(d_est-b)}\n'
+var_d = f'{np.var(d_est)}\n'
 mse_theta = f'{MSE(theta_est, theta)}\n'
 bias_theta = f'{np.mean(theta_est-theta)}\n'
-var_theta = f'{np.var(theta_est-theta)}\n'
+var_theta = f'{np.var(theta_est)}\n'
 
 
 
