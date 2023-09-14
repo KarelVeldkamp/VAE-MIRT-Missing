@@ -234,26 +234,25 @@ a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 # if len(sys.argv) > 1:
 #     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
 #         f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss, bias_a, bias_d, bias_theta, var_a, var_d, var_theta])
-par_names = ['theta', 'a', 'd']
-par = []
-value = []
-for i, est in enumerate([theta_est, a_est, np.expand_dims(d_est, 1)]):
-    for r in range(est.shape[0]):
-        for c in range(est.shape[1]):
-            par.append(f'{par_names[i]}_{r + 1}_{c + 1}')
-            value.append(est[r, c])
+if len(sys.argv) > 1:
+    par_names = ['theta', 'a', 'd']
+    par = []
+    value = []
+    for i, est in enumerate([theta_est, a_est, np.expand_dims(d_est, 1)]):
+        for r in range(est.shape[0]):
+            for c in range(est.shape[1]):
+                par.append(f'{par_names[i]}_{r + 1}_{c + 1}')
+                value.append(est[r, c])
 
-result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
-                       'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'value': value})
+    result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
+                           'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'value': value})
 
-result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
+    result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
 
-result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
-                       'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'value': value})
+    result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
+                           'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'value': value})
 
-result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
-
-
+    result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
 # otherwise, print results and plot figures
 else:
     # plot training loss
