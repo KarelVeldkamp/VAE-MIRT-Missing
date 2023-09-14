@@ -7,9 +7,9 @@ configs:
   patience: 30
   single_epoch_test_run: False
   # data simulation parameters:
-  simulate: True
+  simulate: False
   save: False
-  missing_percentage: .75
+  missing_percentage: 0
   N: 10000
   iteration: 1
   # General model parameters:
