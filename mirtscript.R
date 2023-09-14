@@ -80,8 +80,14 @@ theta[is.na(theta)]=0
 #plot(d1[,1], d, main= paste('Dimension ', i, 'MSE: ', round(mse(d, d1[,1]),4)))
 
 msea=mse(a1, a)
+biasa=mean(a1-a)
+vara=var(a1)
 msed=mse(d1, d)
+biasd=mean(d1-d)
+vard=var(d1)
 mset=mse(theta1, theta)
+biast=mean(theta1-theta)
+vart=var(theta1)
 lll = logLik(fit)
 
 print(msea)
