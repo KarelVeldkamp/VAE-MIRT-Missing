@@ -49,11 +49,16 @@ if cfg['simulate']:
     data = np.random.binomial(1, prob).astype(float)
 else:
     it = cfg["iteration"]
-    data = pd.read_csv(f'./data/simulated/data_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
+    it =1
+    #data = pd.read_csv(f'./data/simulated/data_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
     a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
     b = pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
     theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
     Q = pd.read_csv(f'./parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+
+    exponent = np.dot(theta, a.T) + b
+    prob = np.exp(exponent) / (1 + np.exp(exponent))
+    data = np.random.binomial(1, prob).astype(float)
 
 # potentially save data to disk
 if cfg['save']:
