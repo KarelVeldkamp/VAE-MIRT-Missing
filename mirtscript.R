@@ -93,7 +93,11 @@ lll = logLik(fit)
 print(msea)
 
 fileConn<-file(paste0('./results/', paste(args, collapse='_')))
-writeLines(c(as.character(msea), as.character(msed), as.character(mset), as.character(lll), as.character(runtime)), fileConn)
+writeLines(c(as.character(msea), as.character(msed), as.character(mset), 
+             as.character(lll), as.character(runtime), 
+             as.character(biasa), as.character(biasd), as.character(biast), 
+             as.character(vara), as.character(vard), as.character(vart)),
+           fileConn)
 close(fileConn)
 
 
