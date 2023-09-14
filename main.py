@@ -47,10 +47,12 @@ if cfg['simulate']:
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
 else:
-    data = pd.read_csv(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
-    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
-    b = pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
-    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', header=None, index_col=False).to_numpy()
+    #it = cfg["iteration"]
+    it = 0
+    data = pd.read_csv(f'./data/simulated/data_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
+    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
+    b = pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
+    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
     Q = pd.read_csv(f'./parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
 
 # potentially save data to disk
@@ -207,27 +209,46 @@ if cfg['mirt_dim'] == 1:
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 
-mse_a = f'{MSE(a_est, a)}\n'
-bias_a = f'{np.mean(a_est-a)}\n'
-var_a = f'{np.var(a_est)}\n'
-mse_d = f'{MSE(d_est, b)}\n'
-bias_d = f'{np.mean(d_est-b)}\n'
-var_d = f'{np.var(d_est)}\n'
-mse_theta = f'{MSE(theta_est, theta)}\n'
-bias_theta = f'{np.mean(theta_est-theta)}\n'
-var_theta = f'{np.var(theta_est)}\n'
+# mse_a = f'{MSE(a_est, a)}\n'
+# bias_a = f'{np.mean(a_est-a)}\n'
+# var_a = f'{np.var(a_est)}\n'
+# mse_d = f'{MSE(d_est, b)}\n'
+# bias_d = f'{np.mean(d_est-b)}\n'
+# var_d = f'{np.var(d_est)}\n'
+# mse_theta = f'{MSE(theta_est, theta)}\n'
+# bias_theta = f'{np.mean(theta_est-theta)}\n'
+# var_theta = f'{np.var(theta_est)}\n'
+#
+#
+#
+# lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
+# runtime = f'{runtime}\n'
+# ms = f'{np.mean(sigma_est)}\n'
+# ss = f'{np.std(sigma_est)}\n'
+#
+# # When run with command line arguments, save results to file
+# if len(sys.argv) > 1:
+#     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
+#         f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss, bias_a, bias_d, bias_theta, var_a, var_d, var_theta])
+par_names = ['theta', 'a', 'd']
+par = []
+value = []
+for i, est in enumerate([theta_est, a_est, np.expand_dims(d_est, 1)]):
+    for r in range(est.shape[0]):
+        for c in range(est.shape[1]):
+            par.append(f'{par_names[i]}_{r + 1}_{c + 1}')
+            value.append(est[r, c])
 
+result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
+                       'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'value': value})
 
+result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
 
-lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
-runtime = f'{runtime}\n'
-ms = f'{np.mean(sigma_est)}\n'
-ss = f'{np.std(sigma_est)}\n'
+result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
+                       'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'value': value})
 
-# When run with command line arguments, save results to file
-if len(sys.argv) > 1:
-    with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
-        f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss, bias_a, bias_d, bias_theta, var_a, var_d, var_theta])
+result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
+
 
 # otherwise, print results and plot figures
 else:
