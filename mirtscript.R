@@ -126,4 +126,4 @@ results = data.frame('N' = N,
                      'par'=par,
                      'value'=value)
 
-write.csv(results, file = paste0("../results/", paste(args, sep='_'), ".csv"))
+write.csv(results, file = paste0("../results/", paste(args, collapse='_'), ".csv"))
