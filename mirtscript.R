@@ -118,7 +118,7 @@ for (i in 1:3){
   }
 }
 
-results = data_frame('N' = N,
+results = data.frame('N' = N,
                      'missing' = sparsity,
                      'iteration'=iteration,
                      'model' = model,
