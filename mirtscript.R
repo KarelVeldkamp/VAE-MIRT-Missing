@@ -125,5 +125,5 @@ results = data.frame('N' = N,
                      'mirt_dim'= ndim,
                      'par'=par,
                      'value'=value)
-
-write.csv(results, file = paste0("../results/", paste(args, collapse='_'), ".csv"))
+print(getwd())
+write.csv(results, file = paste0("./results/", paste(args, collapse='_'), ".csv"))
