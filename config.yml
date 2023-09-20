@@ -7,24 +7,23 @@ configs:
   patience: 30
   single_epoch_test_run: False
   # data simulation parameters:
-  simulate: False
+  simulate: True
   save: False
   missing_percentage: 0
   N: 10000
   iteration: 1
   # General model parameters:
-  model: 'cvae'
+  model: 'pvae'
   mirt_dim: 3
   hidden_layer_size: 30
   hidden_layer_size2: 20
   beta: 1
+  n_iw_samples: 1
   # parameters when model=='pvae':
   p_emb_dim: 12
   p_hidden_dim: 24
   p_latent_dim: 24
   p_hidden_layer_dim: 24
-  # parameters when model=='iwae':
-  n_iw_samples: 5
   # parameters when model=='cvae':
   hidden_layer_size3: 10
   # onlyy for main

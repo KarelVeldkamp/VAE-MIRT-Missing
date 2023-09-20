@@ -103,7 +103,8 @@ if cfg['model'] == 'cvae':
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],
-               beta=cfg['beta']
+               beta=cfg['beta'],
+               n_samples=cfg['n_iw_samples']
 
     )
 elif cfg['model'] == 'idvae':
@@ -117,7 +118,8 @@ elif cfg['model'] == 'idvae':
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],
-               beta=cfg['beta']
+               beta=cfg['beta'],
+               n_samples=cfg['n_iw_samples']
 
     )
 elif cfg['model'] == 'ivae':
@@ -130,7 +132,8 @@ elif cfg['model'] == 'ivae':
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],#cfg['batch_size']
                i_miss=indices,
-               beta=cfg['beta']
+               beta=cfg['beta'],
+               n_samples=cfg['n_iw_samples']
     )
 elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data)
@@ -145,7 +148,8 @@ elif cfg['model'] == 'pvae':
                hidden_layer_dim=cfg['p_hidden_layer_dim'],
                mirt_dim=cfg['mirt_dim'],
                Q=Q,
-               beta=cfg['beta']
+               beta=cfg['beta'],
+               n_samples=cfg['n_iw_samples']
     )
 elif cfg['model'] == 'iwae':
     dataset = SimDataset(data)
@@ -173,7 +177,8 @@ elif cfg['model'] == 'vae':
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],
-               beta=cfg['beta']
+               beta=cfg['beta'],
+               n_samples=cfg['n_iw_samples']
 
     )
 else:
@@ -217,15 +222,19 @@ if cfg['mirt_dim'] == 1:
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 
-# mse_a = f'{MSE(a_est, a)}\n'
+mse_a = f'{MSE(a_est, a)}\n'
 # bias_a = f'{np.mean(a_est-a)}\n'
 # var_a = f'{np.var(a_est)}\n'
-# mse_d = f'{MSE(d_est, b)}\n'
+mse_d = f'{MSE(d_est, b)}\n'
 # bias_d = f'{np.mean(d_est-b)}\n'
 # var_d = f'{np.var(d_est)}\n'
-# mse_theta = f'{MSE(theta_est, theta)}\n'
+mse_theta = f'{MSE(theta_est, theta)}\n'
 # bias_theta = f'{np.mean(theta_est-theta)}\n'
 # var_theta = f'{np.var(theta_est)}\n'
+
+print(mse_a)
+print(mse_d)
+print(mse_theta)
 #
 #
 #
