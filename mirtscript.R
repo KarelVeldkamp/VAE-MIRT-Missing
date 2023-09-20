@@ -125,11 +125,11 @@ for (i in 1:3){
 results = data.frame('n' = N,
                      'missing' = sparsity,
                      'iteration'=iteration,
-                     'model' = model,
+                     'model' = 'mirt',
                      'mirt_dim'= ndim,
                      'parameter'=par,
-                     'i'=i,
-                     'j'=j,
+                     'i'=par_i,
+                     'j'=par_j,
                      'value'=value)
 print(getwd())
-write.csv(results, file = paste0("./results/", paste(args, collapse='_'), ".csv"))
+write.csv(results, file = paste0("./results/", paste(args, collapse='_'), ".csv"),row.names=F)

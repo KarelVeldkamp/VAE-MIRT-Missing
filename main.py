@@ -264,7 +264,7 @@ if len(sys.argv) > 1:
     result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
                            'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'i':par_i, 'j':par_j, 'value': value})
 
-    result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
+    result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv", index=False)
 
 # otherwise, print results and plot figures
 else:
