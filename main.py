@@ -251,14 +251,18 @@ if len(sys.argv) > 1:
     par_names = ['theta', 'a', 'd']
     par = []
     value = []
+    par_i = []
+    par_j = []
     for i, est in enumerate([theta_est, a_est, np.expand_dims(d_est, 1)]):
         for r in range(est.shape[0]):
             for c in range(est.shape[1]):
-                par.append(f'{par_names[i]}_{r + 1}_{c + 1}')
+                par.append(par_names[i])
                 value.append(est[r, c])
+                par_i.append(r)
+                par_j.append(c)
 
     result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
-                           'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'value': value})
+                           'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'i':par_i, 'j':par_j, 'value': value})
 
     result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv")
 

@@ -105,6 +105,8 @@ theta[is.na(theta)]=0
 
 par = c()
 value = c()
+par_i = c()
+par_j = c()
 estimates = list(theta, a, as.matrix(d))
 par_names = c('theta', 'a', 'd')
 for (i in 1:3){
@@ -112,18 +114,22 @@ for (i in 1:3){
   print(i)
   for (r in 1:nrow(est)){
     for (c in 1:ncol(est)){
-      par = c(par, paste(par_names[i], r, c, sep='_'))
+      par = c(par, par_names[i])
+      par_i = c(par_i, r)
+      par_j = c(par_j, c)
       value = c(value, est[r, c])
     }
   }
 }
 
-results = data.frame('N' = N,
+results = data.frame('n' = N,
                      'missing' = sparsity,
                      'iteration'=iteration,
                      'model' = model,
                      'mirt_dim'= ndim,
-                     'par'=par,
+                     'parameter'=par,
+                     'i'=i,
+                     'j'=j,
                      'value'=value)
 print(getwd())
 write.csv(results, file = paste0("./results/", paste(args, collapse='_'), ".csv"))
