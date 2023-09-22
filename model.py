@@ -716,18 +716,33 @@ class IVAE(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # forward pass
-
         #data = batch
-        with torch.no_grad():
-            mu, sigma = self.encoder(self.data)
-            gen_data = self.decoder(mu)
-            self.data[np.unravel_index(self.i_miss, self.data.shape)] = gen_data[np.unravel_index(self.i_miss, self.data.shape)]
+        # with torch.no_grad():
+        #     mu, sigma = self.encoder(self.data)
+        #     gen_data = self.decoder(mu)
+        #     self.data[np.unravel_index(self.i_miss, self.data.shape)] = gen_data[np.unravel_index(self.i_miss, self.data.shape)]
+        #
+        #     start = batch_idx * self.batch_size
+        #     end = (batch_idx + 1) * self.batch_size
 
-        reco, mu, sigma, z = self(self.data)
+        # determine which rows are part of this batch
+        begin = batch_idx*self.batch_size
+        end = (1+batch_idx)*self.batch_size
+        batch = self.data[begin:end, :].clone().detach()
+        mask = self.mask[begin:end, :]
 
-        loss = self.loss(self.data, reco, self.mask, mu, sigma, z)
+        reco, mu, sigma, z = self(batch)
+
+        loss = self.loss(batch, reco, mask, mu, sigma, z)
 
         self.log('train_loss',loss)
+
+        # update missing data with new probabilities
+        with torch.no_grad():
+            pred = reco.mean(0)
+            copy = batch.clone().detach()
+            copy[~mask.bool()] = pred[~mask.bool()]
+            self.data[begin:end, :] = batch
 
         return {'loss': loss}
 
