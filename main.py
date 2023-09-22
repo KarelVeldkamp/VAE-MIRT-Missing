@@ -76,6 +76,7 @@ indices = np.random.choice(data.shape[0]*data.shape[1], replace=False, size=int(
 data[np.unravel_index(indices, data.shape)] = float('nan')
 data = torch.Tensor(data)
 
+
 # X = pd.read_csv('./data/missing/data.csv', index_col=0).to_numpy()
 # a = pd.read_csv('./data/missing/a.csv', index_col=0).to_numpy()
 # theta = pd.read_csv('./data/missing/theta.csv', index_col=0).to_numpy()
@@ -98,8 +99,6 @@ if cfg['model'] == 'cvae':
                dataloader=train_loader,
                latent_dims=cfg['mirt_dim'],
                hidden_layer_size=cfg['hidden_layer_size'],
-               hidden_layer_size2=cfg['hidden_layer_size2'],
-               hidden_layer_size3=cfg['hidden_layer_size3'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],
@@ -113,8 +112,7 @@ elif cfg['model'] == 'idvae':
     vae = IDVAE(nitems=data.shape[1],
                dataloader=train_loader,
                latent_dims=cfg['mirt_dim'],
-               hidden_layer_size=cfg['hidden_layer_size2'],
-               hidden_layer_size2=cfg['hidden_layer_size3'],
+               hidden_layer_size=cfg['hidden_layer_size'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],
@@ -126,8 +124,7 @@ elif cfg['model'] == 'ivae':
     vae = IVAE(nitems=data.shape[1],
                data=data,
                latent_dims=cfg['mirt_dim'],
-               hidden_layer_size=cfg['hidden_layer_size2'],
-               hidden_layer_size2=cfg['hidden_layer_size3'],
+               hidden_layer_size=cfg['hidden_layer_size'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],#cfg['batch_size']
@@ -172,8 +169,7 @@ elif cfg['model'] == 'vae':
     vae = VAE(nitems=data.shape[1],
                dataloader=train_loader,
                latent_dims=cfg['mirt_dim'],
-               hidden_layer_size=cfg['hidden_layer_size2'],
-               hidden_layer_size2=cfg['hidden_layer_size3'],
+               hidden_layer_size=cfg['hidden_layer_size'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
                batch_size=data.shape[0],
@@ -215,7 +211,6 @@ elif cfg['model'] == 'pvae':
 sigma_est = torch.exp(log_sigma_est)
 theta_est = theta_est.detach().cpu().numpy()
 sigma_est = sigma_est.detach().cpu().numpy()
-
 
 if cfg['mirt_dim'] == 1:
     theta = np.expand_dims(theta, 1)
