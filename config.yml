@@ -13,12 +13,12 @@ configs:
   N: 10000
   iteration: 1
   # General model parameters:
-  model: 'ivae'
+  model: 'idvae'
   mirt_dim: 3
   hidden_layer_size: 20
   hidden_layer_size2: 20
   beta: 1
-  n_iw_samples: 5
+  n_iw_samples: 1
   # parameters when model=='pvae':
   p_emb_dim: 12
   p_hidden_dim: 24

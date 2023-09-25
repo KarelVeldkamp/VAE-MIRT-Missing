@@ -649,8 +649,8 @@ class IVAE(pl.LightningModule):
                  learning_rate: float,
                  batch_size: int,
                  beta: int = 1,
-                 i_miss=None,
                  data=None,
+                 mask=None,
                  n_samples:int =1 ):
         """
         Initialisaiton
@@ -672,18 +672,14 @@ class IVAE(pl.LightningModule):
 
         self.decoder = Decoder(nitems, latent_dims, qm)
 
-        self.data = torch.Tensor(data)
-
+        self.data = data
+        self.mask = mask
         # initialize missing values with (random) reconstruction based on decoder
-        self.i_miss = i_miss
         with torch.no_grad():
             z =torch.distributions.Normal(0, 1).sample([10000,latent_dims])
             gen_data = self.decoder(z)
-            self.data[np.unravel_index(self.i_miss, self.data.shape)] = gen_data[np.unravel_index(self.i_miss, self.data.shape)]
+            self.data[~self.mask.bool()] = gen_data[~self.mask.bool()]
 
-
-        self.mask = torch.ones(self.data.shape)
-        self.mask[np.unravel_index(self.i_miss, self.data.shape)] = 0
         self.lr = learning_rate
         self.batch_size = batch_size
         self.beta = beta
@@ -762,6 +758,7 @@ class IVAE(pl.LightningModule):
         log_px = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True)
         kl =  log_qx_y - log_px
         elbo = neg_logll + kl
+
 
         elbo *= -1
         with torch.no_grad():

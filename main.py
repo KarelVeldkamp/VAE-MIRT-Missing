@@ -101,7 +101,7 @@ if cfg['model'] == 'cvae':
                hidden_layer_size=cfg['hidden_layer_size'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0],
+               batch_size=cfg['batch_size'],
                beta=cfg['beta'],
                n_samples=cfg['n_iw_samples']
 
@@ -115,20 +115,22 @@ elif cfg['model'] == 'idvae':
                hidden_layer_size=cfg['hidden_layer_size'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0],
+               batch_size=cfg['batch_size'],
                beta=cfg['beta'],
                n_samples=cfg['n_iw_samples']
 
     )
 elif cfg['model'] == 'ivae':
+    missing = torch.isnan(data)
+    mask = (~missing).int()
     vae = IVAE(nitems=data.shape[1],
                data=data,
+               mask=mask,
                latent_dims=cfg['mirt_dim'],
                hidden_layer_size=cfg['hidden_layer_size'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0],#cfg['batch_size']
-               i_miss=indices,
+               batch_size=cfg['batch_size'],
                beta=cfg['beta'],
                n_samples=cfg['n_iw_samples']
     )
@@ -138,7 +140,7 @@ elif cfg['model'] == 'pvae':
     vae = PVAE(dataloader=train_loader,
                nitems=Q.shape[0],
                learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0],
+               batch_size=cfg['batch_size'],
                emb_dim=cfg['p_emb_dim'],
                h_hidden_dim=cfg['p_hidden_dim'],
                latent_dim=cfg['p_latent_dim'],
@@ -147,21 +149,6 @@ elif cfg['model'] == 'pvae':
                Q=Q,
                beta=cfg['beta'],
                n_samples=cfg['n_iw_samples']
-    )
-elif cfg['model'] == 'iwae':
-    dataset = SimDataset(data)
-    train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
-    vae = IWAE(nitems=data.shape[1],
-               dataloader=train_loader,
-               latent_dims=cfg['mirt_dim'],
-               hidden_layer_size=cfg['hidden_layer_size'],
-               hidden_layer_size2=cfg['hidden_layer_size2'],
-               hidden_layer_size3=cfg['hidden_layer_size3'],
-               qm=Q,
-               learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0],
-               n_samples=cfg['n_iw_samples'],
-               beta=cfg['beta']
     )
 elif cfg['model'] == 'vae':
     dataset = SimDataset(data)
@@ -172,7 +159,7 @@ elif cfg['model'] == 'vae':
                hidden_layer_size=cfg['hidden_layer_size'],
                qm=Q,
                learning_rate=cfg['learning_rate'],
-               batch_size=data.shape[0],
+               batch_size=cfg['batch_size'],
                beta=cfg['beta'],
                n_samples=cfg['n_iw_samples']
 
