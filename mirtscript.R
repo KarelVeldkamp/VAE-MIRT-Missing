@@ -11,6 +11,11 @@ d1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/b_', ndi
 a1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/simulated/a_', ndim, '_', it, '.csv'), header=F))[,1:ndim]
 #data1 = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/data/simulated/data_', ndim, '_', iteration, '.csv'), header=F))
 
+
+mse <- function(a,b){
+  mean((a-b)^2)
+}
+
 for (i in 1:10){
   data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
   
@@ -79,9 +84,6 @@ for (i in 1:10){
   if (mse(a1, a) < .1) break
 }
 
-mse <- function(a,b){
-  mean((a-b)^2)
-}
 theta[is.na(theta)]=0
 #for (i in 1:ndim){
 #  plot(a1[,i], a[,i], main= paste('Dimension ', i, 'MSE: ', round(mse(a1[,i], a[,i]),4)))
