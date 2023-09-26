@@ -198,7 +198,7 @@ elif cfg['model'] == 'pvae':
 sigma_est = torch.exp(log_sigma_est)
 theta_est = theta_est.detach().cpu().numpy()
 sigma_est = sigma_est.detach().cpu().numpy()
-
+print(f'total time: {time.time()-start}')
 if cfg['mirt_dim'] == 1:
     theta = np.expand_dims(theta, 1)
 # invert factors for increased interpretability

@@ -16,73 +16,87 @@ mse <- function(a,b){
   mean((a-b)^2)
 }
 
-for (i in 1:10){
-  data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
-  
-  if (ndim>1){
-  	Q = read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/QMatrix', ndim, 'D.csv'), header=F)[,1:ndim]
-  }
-  #a1 = a1*as.matrix(Q)
-  Nit = nrow(Q)
-  
-  #print('simulating data...')
-  #data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
-  if (sparsity>0){
-  	data1[sample(length(data1), length(data1)*sparsity, replace = FALSE)] <- NA
-  }
-  
-  # initialize paramters
-  #print('initializing pars...')
-  #pars <- mirt(data1,ndim, pars = 'values', technical = list())
-  #pars[pars$name=='a3' & pars$item == 'Item_28', ]$value = 1
-  #pars[pars$name=='a3' & pars$item == 'Item_28', ]$est = TRUE
-  #if (ndim > 1){
-  #	for (dim in 1:3){
-  # 		for (item in 1:28){
-  #    			if (Q[item, dim] == 0){
-  #     				pars[pars$name == paste0('a', dim) & pars$item == paste0('Item_', item), ]$value = 0
-  #      				pars[pars$name == paste0('a', dim) & pars$item == paste0('Item_', item), ]$est = FALSE
-  #      }
-  #    }
-  #  }
-  #}
-  if (ndim == 1){
-    model = ndim
-  }else{
-    model='
-      f1=1,3,7,10,11,12,13,14,16,20,21,25,27,28
-      f2=1,2,8,17,23,24
-      f3=3,4,5,6,7,9,11,12,15,16,17,18,19,20,21,22,26,28'
-  }
-  
-  start = Sys.time()
-  fit =mirt(data1, 
-            model, 
-            method = 'EM', 
-            randompars = T,
-  	  technical=list())
-  runtime = as.numeric(difftime(Sys.time(), start, units='secs'))
-  itempars <- coef(fit, simplify = TRUE)$items
-  a <- itempars[,1:(ncol(itempars)-3)]
-  d <- itempars[, ncol(itempars)-2]
-  
-  
 
 
-  theta <- fscores(fit)
-  
-  
-  if (ndim>1){
-    for (i in 1:ndim){
-      if (cor(a[,i], a1[,i])<0){
-        a[,i] = a[,i] * -1 
-        theta[,i] = theta[,i] * -1 
-      }
+if (ndim>1){
+	Q = read.csv(paste0('./MIRT-VAE-Qmatrix/parameters/QMatrix', ndim, 'D.csv'), header=F)[,1:ndim]
+}
+#a1 = a1*as.matrix(Q)
+Nit = nrow(Q)
+
+#print('simulating data...')
+data1 = simdata(a1, d1, itemtype = '2PL', Theta = theta1)
+if (sparsity>0){
+	data1[sample(length(data1), length(data1)*sparsity, replace = FALSE)] <- NA
+}
+
+# initialize paramters
+#print('initializing pars...')
+#pars <- mirt(data1,ndim, pars = 'values', technical = list())
+#pars[pars$name=='a3' & pars$item == 'Item_28', ]$value = 1
+#pars[pars$name=='a3' & pars$item == 'Item_28', ]$est = TRUE
+#if (ndim > 1){
+#	for (dim in 1:3){
+# 		for (item in 1:28){
+#    			if (Q[item, dim] == 0){
+#     				pars[pars$name == paste0('a', dim) & pars$item == paste0('Item_', item), ]$value = 0
+#      				pars[pars$name == paste0('a', dim) & pars$item == paste0('Item_', item), ]$est = FALSE
+#      }
+#    }
+#  }
+#}
+if (ndim == 1){
+  model = ndim
+  method = 'EM'
+}else if (ndim==3){
+  model='
+    f1=1,3,7,10,11,12,13,14,16,20,21,25,27,28
+    f2=1,2,8,17,23,24
+    f3=3,4,5,6,7,9,11,12,15,16,17,18,19,20,21,22,26,28'
+  method = 'MHRM'
+}else if (ndim==10){
+  model='f1 = 1-20,
+         f2 = 11-30
+         f3 = 21-40
+         f4 = 31-50,
+         f5 = 41-60
+         f6 = 51-70
+         f7 = 61-80,
+         f8 = 71-90
+         f9 = 81-100
+         f10 = 91-110'
+  method='QMCEM'
+} else {
+  stop(paste0('q matrix not implementented for', 0, 'dimensions'))
+}
+
+start = Sys.time()
+fit =mirt(data1, 
+          model, 
+          method = method, 
+          randompars = T,
+	  technical=list())
+runtime = as.numeric(difftime(Sys.time(), start, units='secs'))
+itempars <- coef(fit, simplify = TRUE)$items
+a <- itempars[,1:(ncol(itempars)-3)]
+d <- itempars[, ncol(itempars)-2]
+
+# estimate theta
+QMC = ifelse(ndim>3, T, F) # use quasi monte carlo for high dimensional models
+theta <- fscores(fit, QMC = QMC)
+as.numeric(difftime(Sys.time(), start, units='secs'))
+
+if (ndim>1){
+  for (i in 1:ndim){
+    if (cor(a[,i], a1[,i])<0){
+      a[,i] = a[,i] * -1 
+      theta[,i] = theta[,i] * -1 
     }
   }
-  
-  if (mse(a1, a) < .1) break
 }
+
+
+
 
 theta[is.na(theta)]=0
 #for (i in 1:ndim){

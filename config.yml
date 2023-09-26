@@ -7,14 +7,14 @@ configs:
   patience: 10
   single_epoch_test_run: False
   # data simulation parameters:
-  simulate: False
-  save: False
-  missing_percentage: 0
+  simulate: True
+  save: True
+  missing_percentage: 0.75
   N: 10000
   iteration: 1
   # General model parameters:
   model: 'idvae'
-  mirt_dim: 3
+  mirt_dim: 10
   hidden_layer_size: 20
   hidden_layer_size2: 20
   beta: 1

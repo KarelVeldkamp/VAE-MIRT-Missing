@@ -948,16 +948,17 @@ class IDVAE(pl.LightningModule):
         input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1)
         log_py_x = ((input*reco).clamp(1e-7).log()+((1-input)*(1-reco)).clamp(1e-7).log())
         neg_logll = -(log_py_x * mask).sum(dim=-1, keepdim=True)
+
         # calculate KL divergence
         log_qx_y = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True)
         log_px = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True)
         kl =  log_qx_y - log_px
+
         elbo = neg_logll + kl
 
         elbo *= -1
         with torch.no_grad():
             w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
-
         loss = (-w_tilda * elbo).sum(0).mean()
 
         return loss
