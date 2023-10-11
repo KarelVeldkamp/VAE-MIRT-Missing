@@ -84,6 +84,7 @@ d <- itempars[, ncol(itempars)-2]
 # estimate theta
 QMC = ifelse(ndim>3, T, F) # use quasi monte carlo for high dimensional models
 theta <- fscores(fit, QMC = QMC)
+total_runtime = as.numeric(difftime(Sys.time(), start, units='secs'))
 as.numeric(difftime(Sys.time(), start, units='secs'))
 
 if (ndim>1){
@@ -155,5 +156,6 @@ results = data.frame('n' = N,
                      'i'=par_i,
                      'j'=par_j,
                      'value'=value)
-print(getwd())
-write.csv(results, file = paste0("./results/", paste(args, collapse='_'), ".csv"),row.names=F)
+
+#write.csv(results, file = paste0("./results/", paste(args, collapse='_'), ".csv"),row.names=F)
+write.table(total_runtime, paste0("./results/", paste(args, collapse='_'), ".csv"), col.names = F, row.names = F, quote = F, sep = "\n")

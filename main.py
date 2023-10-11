@@ -197,6 +197,8 @@ elif cfg['model'] == 'pvae':
 
 sigma_est = torch.exp(log_sigma_est)
 theta_est = theta_est.detach().cpu().numpy()
+total_runtime = time.time()-start
+
 sigma_est = sigma_est.detach().cpu().numpy()
 print(f'total time: {time.time()-start}')
 if cfg['mirt_dim'] == 1:
@@ -246,7 +248,9 @@ if len(sys.argv) > 1:
     result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
                            'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'i':par_i, 'j':par_j, 'value': value})
 
-    result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv", index=False)
+    #result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv", index=False)
+    with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
+        f.write('%.5f' % total_runtime)
 
 # otherwise, print results and plot figures
 else:
