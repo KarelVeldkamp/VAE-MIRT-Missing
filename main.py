@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, Dataset
 import sys
 import time
 import os
+torch.set_num_threads(1)
 
 # set working directory to source file location
 abspath = os.path.abspath(__file__)
