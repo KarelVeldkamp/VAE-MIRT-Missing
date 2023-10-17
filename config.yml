@@ -9,11 +9,11 @@ configs:
   # data simulation parameters:
   simulate: True
   save: True
-  missing_percentage: 0.75
+  missing_percentage: 0
   N: 10000
   iteration: 1
   # General model parameters:
-  model: 'idvae'
+  model: 'vae'
   mirt_dim: 10
   hidden_layer_size: 20
   hidden_layer_size2: 20

@@ -10,75 +10,6 @@ import math
 
 
 
-
-
-class VariationalEncoder(pl.LightningModule):
-    """
-    Neural network used as encoder
-    """
-    def __init__(self,
-                 nitems: int,
-                 latent_dims: int,
-                 hidden_layer_size: int,
-                 hidden_layer_size2: int):
-        """
-        Initialisation
-        :param latent_dims: number of latent dimensions of the model
-        """
-        super(VariationalEncoder, self).__init__()
-
-        input_layer = nitems
-
-        self.dense1 = nn.Linear(input_layer, hidden_layer_size)
-        self.dense2 = nn.Linear(hidden_layer_size, hidden_layer_size2)
-        self.densem = nn.Linear(hidden_layer_size2, latent_dims)
-        self.denses = nn.Linear(hidden_layer_size2, latent_dims)
-
-        self.N = torch.distributions.Normal(0, 1)
-        self.kl = 0
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        A forward pass though the encoder network
-        :param x: a tensor representing a batch of response data
-        :param m: a mask representing which data is missing
-        :return: a sample from the latent dimensions
-        """
-
-        # calculate s and mu based on encoder weights
-        out = F.elu(self.dense1(x))
-        out = F.elu(self.dense2(out))
-        mu =  self.densem(out)
-        log_sigma = self.denses(out)
-        sigma = torch.exp(log_sigma)
-
-
-        # sample from the latent dimensions
-        z = mu + sigma * self.N.sample(mu.shape)
-
-        # calculate kl divergence
-        #self.kl = torch.mean(-0.5 * torch.sum(1 + torch.log(sigma) - mu ** 2 - torch.log(sigma).exp(), dim = 1), dim = 0)
-        kl = 1 + 2*log_sigma - torch.square(mu) - torch.exp(2*log_sigma)
-        kl = torch.sum(kl, dim=-1)
-        self.kl = -.5 * torch.mean(kl)
-
-        #self.kl =  -0.5 * torch.sum(1 + log_sigma - torch.square(mu) - torch.exp(log_sigma), 1)
-        return z, mu, sigma
-
-
-
-    def est_theta(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        estimate theta parameters (latent factor scores)
-        :param x: input data
-        :param m: mask representing missing data
-        :return: theta estimates
-        """
-        x = F.elu(self.dense1(x))
-        theta_hat = self.densem(x)
-        return theta_hat
-
-
 class Encoder(pl.LightningModule):
     """
     Neural network used as encoder
@@ -291,52 +222,6 @@ class Decoder(pl.LightningModule):
     #     return out
 
 
-class ConditionalDecoder(pl.LightningModule):
-    """
-    Neural network used as decoder, conditional on the missing values
-    """
-
-    def __init__(self, nitems: int, latent_dims: int, decoder_hidden1:int, decoder_hidden2:int, qm: torch.Tensor=None):
-        """
-        Initialisation
-        :param latent_dims: the number of latent factors
-        :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
-        """
-        super().__init__()
-
-        # initialise netowrk components
-        self.mm1 = nn.Linear(nitems, decoder_hidden1)
-        self.mm2 = nn.Linear(decoder_hidden1, decoder_hidden2)
-
-        self.linear = nn.Linear(latent_dims+decoder_hidden2, nitems)
-
-        self.activation = nn.Sigmoid()
-
-        # remove edges between latent dimensions and items that have a zero in the Q-matrix
-        if qm is not None:
-            msk_wts = torch.ones((nitems, latent_dims+decoder_hidden2), dtype=torch.float32)
-            for row in range(qm.shape[0]):
-                for col in range(qm.shape[1]):
-                    if qm[row, col] == 0:
-                        msk_wts[row][col] = 0
-            torch.nn.utils.prune.custom_from_mask(self.linear, name='weight', mask=msk_wts)
-
-    def forward(self, x: torch.Tensor, m: torch.Tensor = None) -> torch.Tensor:
-        """
-        Forward pass though the network
-        :param x: tensor representing a sample from the latent dimensions
-        :param m: mask representing which data is missing
-        :return: tensor representing reconstructed item responses
-        """
-        m = self.mm1(m.float())
-        m = self.mm2(m)
-        x = torch.cat([x, m], 1)
-        out = self.linear(x)
-
-        out = self.activation(out)
-        return out
-
-
 class VAE(pl.LightningModule):
     """
     Neural network for the entire variational autoencoder
@@ -359,6 +244,9 @@ class VAE(pl.LightningModule):
         super(VAE, self).__init__()
         #self.automatic_optimization = False
         self.nitems = nitems
+        self.latent_dims = latent_dims
+        self.hidden_layer_size = hidden_layer_size
+
         self.dataloader = dataloader
 
         self.encoder = Encoder(nitems,
@@ -405,8 +293,8 @@ class VAE(pl.LightningModule):
         # bce = torch.nn.functional.binary_cross_entropy(X_hat, batch[0], reduction='none')
         # bce = torch.mean(bce)  * self.nitems
         # bce = bce / torch.mean(mask.float())
-
-        loss = self.loss(data, reco, mu, sigma, z)
+        mask = torch.ones_like(data)
+        loss = self.loss(data, reco, mask, mu, sigma, z)
 
         # sum the likelihood and the kl divergence
 
@@ -421,21 +309,18 @@ class VAE(pl.LightningModule):
     def train_dataloader(self):
         return self.dataloader
 
-    def loss(self, input, reco, mu, sigma, z):
+    def loss(self, input, reco, mask, mu, sigma, z):
 
         # calculate neragtive log likelihood
-        input = input.unsqueeze(0).repeat(self.n_samples, 1, 1)
+        input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1)
         log_py_x = ((input*reco).clamp(1e-7).log()+((1-input)*(1-reco)).clamp(1e-7).log())
-        neg_logll = -(log_py_x).sum(dim=-1, keepdim=True)
-
+        logll = (log_py_x * mask).sum(dim=-1, keepdim=True)
         # calculate KL divergence
         log_qx_y = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True)
         log_px = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True)
         kl =  log_qx_y - log_px
+        elbo = logll - kl
 
-        elbo = neg_logll + kl
-
-        elbo *= -1
         with torch.no_grad():
             w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
 
@@ -444,137 +329,25 @@ class VAE(pl.LightningModule):
         return loss
 
 
-# class IDVAE(pl.LightningModule):
-#     """
-#     Neural network for the entire variational autoencoder
-#     """
-#     def __init__(self,
-#                  dataloader,
-#                  nitems: int,
-#                  latent_dims: int,
-#                  hidden_layer_size: int,
-#                  hidden_layer_size2: int,
-#                  qm: torch.Tensor,
-#                  learning_rate: float,
-#                  batch_size: int,
-#                  beta: int = 1):
-#         """
-#         Initialisaiton
-#         :param latent_dims: number of latent dimensions
-#         :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
-#         """
-#         super(IDVAE, self).__init__()
-#         #self.automatic_optimization = False
-#         self.nitems = nitems
-#         self.dataloader = dataloader
-#
-#         self.encoder = Encoder(nitems,
-#                                latent_dims,
-#                                hidden_layer_size,
-#                                hidden_layer_size2
-#         )
-#
-#         self.sampler = SamplingLayer()
-#
-#         self.decoder = Decoder(nitems, latent_dims, qm)
-#
-#         self.lr = learning_rate
-#         self.batch_size = batch_size
-#         self.beta = beta
-#         self.kl=0
-#
-#     def forward(self, x: torch.Tensor, m: torch.Tensor):
-#         """
-#         forward pass though the entire network
-#         :param x: tensor representing response data
-#         :param m: mask representing which data is missing
-#         :return: tensor representing a reconstruction of the input response data
-#         """
-#         mu, log_sigma = self.encoder(x)
-#         z = self.sampler(mu, log_sigma)
-#         reco = self.decoder(z)
-#
-#         # calculate kl divergence
-#         kl = 1 + 2 * log_sigma - torch.square(mu) - torch.exp(2 * log_sigma)
-#         kl = torch.sum(kl, dim=-1)
-#
-#         self.kl = -.5 * torch.mean(kl)
-#         return reco
-#
-#     def configure_optimizers(self):
-#         return torch.optim.Adam(self.parameters(), lr=self.lr, amsgrad=True)
-#
-#     def training_step(self, batch, batch_idx):
-#         # forward pass
-#
-#         data, mask = batch
-#         X_hat = self(data, mask)
-#
-#         # calculate the likelihood, and take the mean of all non missing elements
-#         # bce = data * torch.log(X_hat) + (1 - data) * torch.log(1 - X_hat)
-#         # bce = bce*mask
-#         # bce = -self.nitems * torch.mean(bce, 1)
-#         # bce = bce / torch.mean(mask.float(),1)
-#
-#         bce = torch.nn.functional.binary_cross_entropy(X_hat, batch[0], reduction='none') * mask
-#         bce = torch.mean(bce)  * self.nitems
-#         bce = bce / torch.mean(mask.float())
-#
-#         # sum the likelihood and the kl divergence
-#
-#         #loss = torch.mean((bce + self.encoder.kl))
-#         loss = bce + self.beta * self.kl
-#         #self.log('binary_cross_entropy', bce)
-#         #self.log('kl_divergence', self.encoder.kl)
-#         self.log('train_loss',loss)
-#
-#         return {'loss': loss}
-#
-#     def train_dataloader(self):
-#         return self.dataloader
-
-class CVAE(pl.LightningModule):
+class CVAE(VAE):
     """
     Neural network for the entire variational autoencoder
     """
     def __init__(self,
-                 dataloader,
-                 nitems: int,
-                 latent_dims: int,
-                 hidden_layer_size: int,
-                 #hidden_layer_size2: int,
-                 #hidden_layer_size3: int,
-                 qm: torch.Tensor,
-                 learning_rate: float,
-                 batch_size: int,
-                 beta: int = 1,
-                 n_samples: int = 5):
+                 **kwargs):
         """
         Initialisaiton
         :param latent_dims: number of latent dimensions
         :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
         """
-        super(CVAE, self).__init__()
+        super(CVAE, self).__init__(**kwargs)
         #self.automatic_optimization = False
-        self.nitems = nitems
-        self.dataloader = dataloader
-
-        self.encoder = ConditionalEncoder(nitems,
-                                          latent_dims,
-                                          hidden_layer_size#,
-                                          #hidden_layer_size2,
-                                          #hidden_layer_size3
+        print(kwargs)
+        self.encoder = ConditionalEncoder(self.nitems,
+                                          self.latent_dims,
+                                          self.hidden_layer_size
         )
 
-        self.sampler = SamplingLayer()
-
-        self.decoder = Decoder(nitems, latent_dims, qm)
-
-        self.lr = learning_rate
-        self.batch_size = batch_size
-        self.beta = beta
-        self.kl=0
-        self.n_samples = n_samples
 
     def forward(self, x: torch.Tensor, m: torch.Tensor):
         """
@@ -592,10 +365,6 @@ class CVAE(pl.LightningModule):
         z = self.sampler(mu, sigma)
         reco = self.decoder(z)
 
-        # calcualte kl divergence
-        # kl = 1 + 2 * log_sigma - torch.square(mu) - torch.exp(2 * log_sigma)
-        # kl = torch.sum(kl, dim=-1)
-        # self.kl = -.5 * torch.mean(kl)
         return reco, mu, sigma, z
 
     def configure_optimizers(self):
@@ -612,78 +381,30 @@ class CVAE(pl.LightningModule):
 
         return {'loss': loss}
 
-    def train_dataloader(self):
-        return self.dataloader
 
-    def loss(self, input, reco, mask, mu, sigma, z):
-
-        # calculate neragtive log likelihood
-        input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1)
-        log_py_x = ((input*reco).clamp(1e-7).log()+((1-input)*(1-reco)).clamp(1e-7).log())
-        neg_logll = -(log_py_x * mask).sum(dim=-1, keepdim=True)
-
-        # calculate KL divergence
-        log_qx_y = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True)
-        log_px = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True)
-        kl =  log_qx_y - log_px
-
-        elbo = neg_logll + kl
-
-        elbo *= -1
-        with torch.no_grad():
-            w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
-
-        loss = (-w_tilda * elbo).sum(0).mean()
-
-        return loss
-
-class IVAE(pl.LightningModule):
+class IVAE(VAE):
     """
     Neural network for the entire variational autoencoder
     """
     def __init__(self,
-                 nitems: int,
-                 latent_dims: int,
-                 hidden_layer_size: int,
-                 qm: torch.Tensor,
-                 learning_rate: float,
-                 batch_size: int,
-                 beta: int = 1,
                  data=None,
                  mask=None,
-                 n_samples:int =1 ):
+                 **kwargs):
         """
         Initialisaiton
         :param latent_dims: number of latent dimensions
         :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
         """
-        super(IVAE, self).__init__()
-        #self.automatic_optimization = False
-
-
-        self.nitems = nitems
-
-        self.encoder = Encoder(nitems,
-                                latent_dims,
-                                hidden_layer_size
-        )
-
-        self.sampler = SamplingLayer()
-
-        self.decoder = Decoder(nitems, latent_dims, qm)
+        super(IVAE, self).__init__(**kwargs)
 
         self.data = data
         self.mask = mask
         # initialize missing values with (random) reconstruction based on decoder
         with torch.no_grad():
-            z =torch.distributions.Normal(0, 1).sample([10000,latent_dims])
+            z =torch.distributions.Normal(0, 1).sample([self.data.shape[0],self.latent_dims])
             gen_data = self.decoder(z)
             self.data[~self.mask.bool()] = gen_data[~self.mask.bool()]
 
-        self.lr = learning_rate
-        self.batch_size = batch_size
-        self.beta = beta
-        self.n_samples=n_samples
 
 
     def forward(self, x: torch.Tensor):
@@ -701,26 +422,12 @@ class IVAE(pl.LightningModule):
 
         reco = self.decoder(z)
 
-        # calcualte kl divergence
-        # kl = 1 + 2 * log_sigma - torch.square(mu) - torch.exp(2 * log_sigma)
-        # kl = torch.sum(kl, dim=-1)
-        # self.kl = -.5 * torch.mean(kl)
         return reco, mu, sigma, z
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr, amsgrad=True)
 
     def training_step(self, batch, batch_idx):
-        # forward pass
-        #data = batch
-        # with torch.no_grad():
-        #     mu, sigma = self.encoder(self.data)
-        #     gen_data = self.decoder(mu)
-        #     self.data[np.unravel_index(self.i_miss, self.data.shape)] = gen_data[np.unravel_index(self.i_miss, self.data.shape)]
-        #
-        #     start = batch_idx * self.batch_size
-        #     end = (batch_idx + 1) * self.batch_size
-
         # determine which rows are part of this batch
         begin = batch_idx*self.batch_size
         end = (1+batch_idx)*self.batch_size
@@ -747,30 +454,9 @@ class IVAE(pl.LightningModule):
         train_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         return train_loader
 
-    def loss(self, input, reco, mask, mu, sigma, z):
-
-        # calculate neragtive log likelihood
-        input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1)
-        log_py_x = ((input*reco).clamp(1e-7).log()+((1-input)*(1-reco)).clamp(1e-7).log())
-        neg_logll = -(log_py_x * mask).sum(dim=-1, keepdim=True)
-        # calculate KL divergence
-        log_qx_y = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True)
-        log_px = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True)
-        kl =  log_qx_y - log_px
-        elbo = neg_logll + kl
 
 
-        elbo *= -1
-        with torch.no_grad():
-            w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
-
-        loss = (-w_tilda * elbo).sum(0).mean()
-
-        return loss
-
-
-
-class PVAE(pl.LightningModule):
+class PVAE(VAE):
     """
     Neural network for the entire partial variational autoencoder
     """
@@ -781,13 +467,7 @@ class PVAE(pl.LightningModule):
                  latent_dim: int,
                  hidden_layer_dim: int,
                  mirt_dim: int,
-                 learning_rate: float,
-                 batch_size: int,
-                 dataloader,
-                 Q: np.array,
-                 nitems: int,
-                 beta: int = 1,
-                 n_samples: int = 1):
+                 **kwargs):
         """
 
         :param emb_dim: dimension of the item embeddings
@@ -799,19 +479,10 @@ class PVAE(pl.LightningModule):
         :param dataset: which dataset to use
         """"""
         """
-        super(PVAE, self).__init__()
-        # self.automatic_optimization = False
-        self.nitems = nitems
-        self.dataloader = dataloader
+        super(PVAE, self).__init__(**kwargs)
 
         self.encoder = PartialEncoder(self.nitems, emb_dim, h_hidden_dim, latent_dim, hidden_layer_dim, mirt_dim)
-        self.sampler = SamplingLayer()
-        self.decoder = Decoder(self.nitems, mirt_dim, qm=Q)
 
-        self.lr = learning_rate
-        self.batch_size = batch_size
-        self.beta = beta
-        self.n_samples = n_samples
 
     def forward(self, item_ids, ratings):
         """
@@ -848,64 +519,21 @@ class PVAE(pl.LightningModule):
     def train_dataloader(self):
         return self.dataloader
 
-    def loss(self, input, reco, mask, mu, sigma, z):
 
-        # calculate neragtive log likelihood
-        input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1)
-        log_py_x = ((input*reco).clamp(1e-7).log()+((1-input)*(1-reco)).clamp(1e-7).log())
-        neg_logll = -(log_py_x * mask).sum(dim=-1, keepdim=True)
-        # calculate KL divergence
-        log_qx_y = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True)
-        log_px = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True)
-        kl =  log_qx_y - log_px
-        elbo = neg_logll + kl
 
-        elbo *= -1
-        with torch.no_grad():
-            w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
-
-        loss = (-w_tilda * elbo).sum(0).mean()
-
-        return loss
-
-class IDVAE(pl.LightningModule):
+class IDVAE(VAE):
     """
     Neural network for the entire variational autoencoder
     """
     def __init__(self,
-                 nitems: int,
-                 latent_dims: int,
-                 hidden_layer_size: int,
-                 qm: torch.Tensor,
-                 learning_rate: float,
-                 batch_size: int,
-                 dataloader,
-                 beta: int = 1,
-                 n_samples=10):
+                 **kwargs):
         """
         Initialisaiton
         :param latent_dims: number of latent dimensions
         :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
         """
-        super(IDVAE, self).__init__()
+        super(IDVAE, self).__init__(**kwargs)
         #self.automatic_optimization = False
-        self.nitems = nitems
-
-        self.encoder = Encoder(nitems,
-                               latent_dims,
-                               hidden_layer_size
-        )
-
-        self.sampler = SamplingLayer()
-        #self.N = torch.distributions.Normal(0, 1)
-
-        self.decoder = Decoder(nitems, latent_dims, qm)
-
-        self.lr = learning_rate
-        self.batch_size = batch_size
-        self.dataloader = dataloader
-        self.beta = beta
-        self.n_samples = n_samples
 
     def forward(self, x: torch.Tensor):
         """
@@ -941,24 +569,3 @@ class IDVAE(pl.LightningModule):
 
     def train_dataloader(self):
         return self.dataloader
-
-    def loss(self, input, reco, mask, mu, sigma, z):
-
-        # calculate neragtive log likelihood
-        input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1)
-        log_py_x = ((input*reco).clamp(1e-7).log()+((1-input)*(1-reco)).clamp(1e-7).log())
-        neg_logll = -(log_py_x * mask).sum(dim=-1, keepdim=True)
-
-        # calculate KL divergence
-        log_qx_y = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True)
-        log_px = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True)
-        kl =  log_qx_y - log_px
-
-        elbo = neg_logll + kl
-
-        elbo *= -1
-        with torch.no_grad():
-            w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
-        loss = (-w_tilda * elbo).sum(0).mean()
-
-        return loss

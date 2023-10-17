@@ -125,6 +125,7 @@ elif cfg['model'] == 'ivae':
     missing = torch.isnan(data)
     mask = (~missing).int()
     vae = IVAE(nitems=data.shape[1],
+               dataloader=None,
                data=data,
                mask=mask,
                latent_dims=cfg['mirt_dim'],
@@ -138,8 +139,10 @@ elif cfg['model'] == 'ivae':
 elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data)
     train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
-    vae = PVAE(dataloader=train_loader,
-               nitems=Q.shape[0],
+    vae = PVAE(nitems=Q.shape[0],
+               dataloader=train_loader,
+               latent_dims=1,
+               hidden_layer_size=1,
                learning_rate=cfg['learning_rate'],
                batch_size=cfg['batch_size'],
                emb_dim=cfg['p_emb_dim'],
@@ -147,7 +150,7 @@ elif cfg['model'] == 'pvae':
                latent_dim=cfg['p_latent_dim'],
                hidden_layer_dim=cfg['p_hidden_layer_dim'],
                mirt_dim=cfg['mirt_dim'],
-               Q=Q,
+               qm=Q,
                beta=cfg['beta'],
                n_samples=cfg['n_iw_samples']
     )
