@@ -6,8 +6,6 @@ import torch.nn.utils.prune
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 from data import *
-import math
-
 
 
 class Encoder(pl.LightningModule):
@@ -53,7 +51,6 @@ class SamplingLayer(pl.LightningModule):
         self.N = torch.distributions.Normal(0, 1)
 
     def forward(self, mu, sigma):
-        #sigma = torch.exp(log_sigma)
         error = self.N.sample(mu.shape)
         # potentially move error vector to GPU
         error = error.to(mu)
@@ -77,10 +74,6 @@ class ConditionalEncoder(pl.LightningModule):
 
         self.dense1 = nn.Linear(input_layer, hidden_layer_size)
         self.bn1 = torch.nn.BatchNorm1d(hidden_layer_size)
-        #self.dense2 = nn.Linear(hidden_layer_size, hidden_layer_size2)
-        #self.bn2 = torch.nn.BatchNorm1d(hidden_layer_size2)
-        #self.dense3 = nn.Linear(hidden_layer_size2, hidden_layer_size3)
-        #self.bn3 = torch.nn.BatchNorm1d(hidden_layer_size3)
         self.densem = nn.Linear(hidden_layer_size, latent_dims)
         self.denses = nn.Linear(hidden_layer_size, latent_dims)
 
@@ -196,30 +189,6 @@ class Decoder(pl.LightningModule):
         out = self.activation(out)
 
         return out
-        # initialise netowrk components
-        # #input_layer = latent_dims
-        # self.linear = nn.Linear(input_layer, nitems)
-        # self.activation = nn.Sigmoid()
-        #
-        # # remove edges between latent dimensions and items that have a zero in the Q-matrix
-        # if qm is not None:
-        #     msk_wts = torch.ones((nitems, input_layer), dtype=torch.float32)
-        #     for row in range(qm.shape[0]):
-        #         for col in range(qm.shape[1]):
-        #             if qm[row, col] == 0:
-        #                 msk_wts[row][col] = 0
-        #     torch.nn.utils.prune.custom_from_mask(self.linear, name='weight', mask=msk_wts)
-
-    # def forward(self, x: torch.Tensor) -> torch.Tensor:
-    #     """
-    #     Forward pass though the network
-    #     :param x: tensor representing a sample from the latent dimensions
-    #     :param m: mask representing which data is missing
-    #     :return: tensor representing reconstructed item responses
-    #     """
-    #     out = self.linear(x)
-    #     out = self.activation(out)
-    #     return out
 
 
 class VAE(pl.LightningModule):
@@ -367,9 +336,6 @@ class CVAE(VAE):
 
         return reco, mu, sigma, z
 
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr, amsgrad=True)
-
     def training_step(self, batch, batch_idx):
         # forward pass
         data, mask = batch
@@ -423,9 +389,6 @@ class IVAE(VAE):
         reco = self.decoder(z)
 
         return reco, mu, sigma, z
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr, amsgrad=True)
 
     def training_step(self, batch, batch_idx):
         # determine which rows are part of this batch
@@ -500,9 +463,6 @@ class PVAE(VAE):
 
         return reco, mu, sigma, z
 
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr, amsgrad=True)
-
     def training_step(self, batch, batch_idx):
         item_ids, ratings, output, mask = batch
         reco, mu, sigma, z = self(item_ids, ratings)
@@ -516,8 +476,6 @@ class PVAE(VAE):
         self.log('train_loss', loss)
         return {'loss': loss}
 
-    def train_dataloader(self):
-        return self.dataloader
 
 
 
@@ -551,9 +509,6 @@ class IDVAE(VAE):
         reco = self.decoder(z)
         return reco, mu, sigma, z
 
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr, amsgrad=True)
-
     def training_step(self, batch, batch_idx):
         # forward pass
 
@@ -567,5 +522,3 @@ class IDVAE(VAE):
 
         return {'loss': loss}
 
-    def train_dataloader(self):
-        return self.dataloader
