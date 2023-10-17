@@ -46,6 +46,9 @@ class Encoder(pl.LightningModule):
 
 
 class SamplingLayer(pl.LightningModule):
+    """
+    class that samples from the approximate posterior using the reparametrisation trick
+    """
     def __init__(self):
         super(SamplingLayer, self).__init__()
         self.N = torch.distributions.Normal(0, 1)
@@ -59,7 +62,7 @@ class SamplingLayer(pl.LightningModule):
 
 class ConditionalEncoder(pl.LightningModule):
     """
-    Neural network used as encoder
+    Encoder network that takes the mask of missing data as additional input
     """
     def __init__(self,
                  nitems: int,
@@ -258,19 +261,9 @@ class VAE(pl.LightningModule):
         data, mask = batch
         reco, mu, sigma, z = self(data)
 
-
-        # bce = torch.nn.functional.binary_cross_entropy(X_hat, batch[0], reduction='none')
-        # bce = torch.mean(bce)  * self.nitems
-        # bce = bce / torch.mean(mask.float())
         mask = torch.ones_like(data)
         loss = self.loss(data, reco, mask, mu, sigma, z)
 
-        # sum the likelihood and the kl divergence
-
-        #loss = torch.mean((bce + self.encoder.kl))
-        #loss = bce + self.beta * self.kl
-        #self.log('binary_cross_entropy', bce)
-        #self.log('kl_divergence', self.encoder.kl)
         self.log('train_loss',loss)
 
         return {'loss': loss}
@@ -279,17 +272,20 @@ class VAE(pl.LightningModule):
         return self.dataloader
 
     def loss(self, input, reco, mask, mu, sigma, z):
+        # calculate log likelihood
+        input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1) # repeat input k times (to match reco size)
+        log_p_x_theta = ((input * reco).clamp(1e-7).log() + ((1 - input) * (1 - reco)).clamp(1e-7).log()) # compute log ll
+        logll = (log_p_x_theta * mask).sum(dim=-1, keepdim=True) # set elements based on missing data to zero
 
-        # calculate neragtive log likelihood
-        input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1)
-        log_py_x = ((input*reco).clamp(1e-7).log()+((1-input)*(1-reco)).clamp(1e-7).log())
-        logll = (log_py_x * mask).sum(dim=-1, keepdim=True)
         # calculate KL divergence
-        log_qx_y = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True)
-        log_px = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True)
-        kl =  log_qx_y - log_px
+        log_q_theta_x = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True) # log q(Theta|X)
+        log_p_theta = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True) # log p(Theta)
+        kl =  log_q_theta_x - log_p_theta # kl divergence
+
+        # combine into ELBO
         elbo = logll - kl
 
+        # perform importance weighting
         with torch.no_grad():
             w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
 
@@ -310,7 +306,6 @@ class CVAE(VAE):
         :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
         """
         super(CVAE, self).__init__(**kwargs)
-        #self.automatic_optimization = False
         print(kwargs)
         self.encoder = ConditionalEncoder(self.nitems,
                                           self.latent_dims,
@@ -346,6 +341,7 @@ class CVAE(VAE):
         self.log('train_loss',loss)
 
         return {'loss': loss}
+
 
 
 class IVAE(VAE):
@@ -477,8 +473,6 @@ class PVAE(VAE):
         return {'loss': loss}
 
 
-
-
 class IDVAE(VAE):
     """
     Neural network for the entire variational autoencoder
@@ -511,11 +505,10 @@ class IDVAE(VAE):
 
     def training_step(self, batch, batch_idx):
         # forward pass
-
         data, mask = batch
         reco, mu, sigma, z = self(data)
 
-        # sum the likelihood and the kl divergence
+        # calculate loss
         loss = self.loss(data, reco, mask, mu, sigma, z)
 
         self.log('train_loss',loss)
