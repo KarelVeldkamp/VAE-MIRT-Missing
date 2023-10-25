@@ -284,7 +284,6 @@ class VAE(pl.LightningModule):
 
         # combine into ELBO
         elbo = logll - kl
-
         # perform importance weighting
         with torch.no_grad():
             w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
