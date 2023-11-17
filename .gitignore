@@ -5,5 +5,4 @@
 /lightning_logs/
 /my_model/
 
-# supyter notebooks
-*.ipynb
+
