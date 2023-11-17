@@ -5,6 +5,6 @@ In the study, we compare these variational approaches to marginal maximum likeli
 
 the [MIRTVAE](MIRTVAE/) directory contains all code for our variational models. The main.py file fits model to existing or simulated data. and the [additional scripts](MIRTVAE/additional_scripts) subdirectory contains the code used to fit MML models to simulated data, as well as the code to fit models to the BTA dataset using both mirt and CVAE. 
 
-The [data](data/) directory contains the BTA datafiles as well as all QMatrices used in the paper. We provide both preprocessed subset of the BTA dataset, as well as the dataset with 30% of observations removed. 
+The [data](data/) directory contains the BTA datafiles as well as all QMatrices used in the paper. We provide both preprocessed subset of the BTA dataset, as well as the dataset with 30% of observations removed. The entire unprocessed dataset is publicly available in the [PLSC DataShop]([data/](https://pslcdatashop.web.cmu.edu/DatasetInfo?datasetId=4524))
 
-the [parameter](parameters)directory contains the paramter estimates of mirt and cvae on the missing dataset, as well as the mirt estimates on the complete dataset. 
+the [parameter](parameters) directory contains the paramter estimates of mirt and cvae on the missing dataset, as well as the mirt estimates on the complete dataset. 
