@@ -1,2 +1,2 @@
-# MIRT-VAE-QMatrix
-Implementation of various variational autoencoders to estimate multidimensional IRT models in the presence of missing data
+# VAE MIRT for missing data
+this repository contains the code and data for the paper 'Handling Missing Data In Variational Item Response Theory'. 
