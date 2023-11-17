@@ -1,7 +1,5 @@
-/data/**
-!/data/algebra/Algebra.csv
-!/data/algebra/QMatrixAlgebra.csv
-/parameters/simulated/
+/data/simulated/*
+/parameters/simulated/*
 /figures/**
 /logs/**
 /my_model/
