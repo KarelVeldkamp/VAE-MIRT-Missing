@@ -2,6 +2,7 @@
 /parameters/simulated/*
 /figures/**
 /logs/**
+/lightning_logs/
 /my_model/
 
 # supyter notebooks
