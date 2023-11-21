@@ -1,6 +1,7 @@
 /data/simulated/*
 /parameters/simulated/*
 /figures/**
+!/figures/BTA/*
 /logs/**
 /lightning_logs/
 /my_model/
