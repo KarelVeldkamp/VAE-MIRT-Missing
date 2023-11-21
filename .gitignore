@@ -1,8 +1,6 @@
 /data/simulated/*
 /parameters/simulated/*
-/figures/dylan/
-/figures/missing/
-/figures/simfit/
+/figures/**
 /logs/**
 /lightning_logs/
 /my_model/
