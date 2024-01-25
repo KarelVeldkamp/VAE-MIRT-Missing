@@ -38,7 +38,9 @@ if len(sys.argv) > 1:
 # simulate data
 if cfg['simulate']:
     theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
-    Q = pd.read_csv(f'parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+
+    Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+
 
     a = np.random.uniform(.5, 2, Q.shape[0] * cfg['mirt_dim']).reshape((Q.shape[0], cfg['mirt_dim']))  # draw discrimination parameters from uniform distribution
     a *= Q
@@ -77,20 +79,20 @@ indices = np.random.choice(data.shape[0]*data.shape[1], replace=False, size=int(
 data[np.unravel_index(indices, data.shape)] = float('nan')
 data = torch.Tensor(data)
 
-
 # X = pd.read_csv('./data/missing/data.csv', index_col=0).to_numpy()
 # a = pd.read_csv('./data/missing/a.csv', index_col=0).to_numpy()
 # theta = pd.read_csv('./data/missing/theta.csv', index_col=0).to_numpy()
 # d = pd.read_csv('./data/missing/d.csv', index_col=0).to_numpy()
 # Q = (a != 0).astype(int)
 
-
+if os.path.exists('logs/simfit/version_0/metrics.csv'):
+    os.remove('logs/simfit/version_0/metrics.csv')
 # initialise model and optimizer
 logger = CSVLogger("logs", name='simfit', version=0)
 trainer = Trainer(fast_dev_run=cfg['single_epoch_test_run'],
                   max_epochs=cfg['max_epochs'],
                   enable_checkpointing=False, 
-                  logger=False, 
+                  logger=logger,
                   callbacks=[EarlyStopping(monitor='train_loss', min_delta=cfg['min_delta'], patience=cfg['patience'], mode='min')])
 
 if cfg['model'] == 'cvae':
@@ -298,8 +300,8 @@ else:
 
         # parameter estimation plot for theta
         plt.figure()
-        thetai_est = theta_est[:, dim]
-        thetai_true = theta[:, dim]
+        thetai_est = theta_est[:, dim].squeeze()
+        thetai_true = theta[:, dim].squeeze()
         mse = MSE(thetai_est, thetai_true)
         plt.scatter(y=thetai_est, x=thetai_true)
         plt.plot(thetai_true, thetai_true)

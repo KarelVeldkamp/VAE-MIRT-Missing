@@ -8,17 +8,17 @@ configs:
   single_epoch_test_run: False
   # data simulation parameters:
   simulate: True
-  save: True
-  missing_percentage: 0
-  N: 10000
+  save: False
+  missing_percentage: 0.6
+  N: 1000
   iteration: 1
   # General model parameters:
-  model: 'vae'
-  mirt_dim: 10
+  model: 'cvae'
+  mirt_dim: 1
   hidden_layer_size: 20
   hidden_layer_size2: 20
   beta: 1
-  n_iw_samples: 5
+  n_iw_samples: 25
   # parameters when model=='pvae':
   p_emb_dim: 12
   p_hidden_dim: 24
@@ -26,5 +26,4 @@ configs:
   p_hidden_layer_dim: 24
   # parameters when model=='cvae':
   hidden_layer_size3: 10
-  # onlyy for main
-  which_data: 'dylan'
+

@@ -187,6 +187,7 @@ class Decoder(pl.LightningModule):
             self.qm = torch.Tensor(qm).t()
 
     def forward(self, x: torch.Tensor):
+        self.qm = self.qm.to(self.weights)
         pruned_weights = self.weights * self.qm
         out = torch.matmul(x, pruned_weights) + self.bias
         out = self.activation(out)
@@ -279,7 +280,7 @@ class VAE(pl.LightningModule):
 
         # calculate KL divergence
         log_q_theta_x = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True) # log q(Theta|X)
-        log_p_theta = torch.distributions.Normal(torch.zeros_like(z), scale=torch.ones(mu.shape[2])).log_prob(z).sum(dim = -1, keepdim = True) # log p(Theta)
+        log_p_theta = torch.distributions.Normal(torch.zeros_like(z).to(input), scale=torch.ones(mu.shape[2]).to(input)).log_prob(z).sum(dim = -1, keepdim = True) # log p(Theta)
         kl =  log_q_theta_x - log_p_theta # kl divergence
 
         # combine into ELBO
