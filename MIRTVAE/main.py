@@ -1,3 +1,5 @@
+import torch.autograd
+
 from model import *
 from data import *
 from helpers import *
@@ -37,14 +39,23 @@ if len(sys.argv) > 1:
 
 # simulate data
 if cfg['simulate']:
-    theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
+    #theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
+    mu_true = np.array([0, 0,0])
+    cov_true = np.array([1, .0, .0,
+                         .0, 1, .0,
+                         .0, .0, 1]).reshape((3,3))
+    theta = np.random.multivariate_normal(mu_true, cov_true, size=cfg['N'])
 
     Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+    Q = np.zeros((60,3))
+    Q[0:20, 0]=1
+    Q[20:40, 1] = 1
+    Q[40:60, 2] = 1
 
 
     a = np.random.uniform(.5, 2, Q.shape[0] * cfg['mirt_dim']).reshape((Q.shape[0], cfg['mirt_dim']))  # draw discrimination parameters from uniform distribution
     a *= Q
-    b = np.linspace(-2, 2, Q.shape[0], endpoint=True)  # eqally spaced values between -2 and 2 for the difficulty
+    b = np.linspace(-3, 3, Q.shape[0], endpoint=True)  # equally spaced values between -2 and 2 for the difficulty
 
     exponent = np.dot(theta, a.T) + b
 
@@ -57,9 +68,6 @@ else:
     a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
     b = np.squeeze(pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy())
     theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
-    print(theta.shape)
-    print(a.shape)
-    print(b.shape)
     Q = pd.read_csv(f'./parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
 
     exponent = np.dot(theta, a.T) + b
@@ -77,7 +85,17 @@ if cfg['save']:
 np.random.seed(cfg['iteration'])
 indices = np.random.choice(data.shape[0]*data.shape[1], replace=False, size=int(data.shape[0]*data.shape[1]*cfg['missing_percentage']))
 data[np.unravel_index(indices, data.shape)] = float('nan')
+
+# Compute approximate latent covariance matrix
+#Sigma_1 = torch.Tensor(np.corrcoef(np.dot(data, Q).T))
+Sigma_1 = torch.Tensor(np.cov(theta.T))
+Sigma_1 = torch.eye(3)
+
+
+# make data tensor
 data = torch.Tensor(data)
+
+
 
 # X = pd.read_csv('./data/missing/data.csv', index_col=0).to_numpy()
 # a = pd.read_csv('./data/missing/a.csv', index_col=0).to_numpy()
@@ -89,11 +107,18 @@ if os.path.exists('logs/simfit/version_0/metrics.csv'):
     os.remove('logs/simfit/version_0/metrics.csv')
 # initialise model and optimizer
 logger = CSVLogger("logs", name='simfit', version=0)
+
+
+
 trainer = Trainer(fast_dev_run=cfg['single_epoch_test_run'],
                   max_epochs=cfg['max_epochs'],
+                  min_epochs=cfg['min_epochs'],
                   enable_checkpointing=False, 
                   logger=logger,
-                  callbacks=[EarlyStopping(monitor='train_loss', min_delta=cfg['min_delta'], patience=cfg['patience'], mode='min')])
+                  accelerator='cpu',
+                  callbacks=[EarlyStopping(monitor='train_loss', min_delta=cfg['min_delta'], patience=cfg['patience'], mode='min')],
+                  detect_anomaly=False,
+                  gradient_clip_val=0)
 
 if cfg['model'] == 'cvae':
     dataset = SimDataset(data)
@@ -106,7 +131,8 @@ if cfg['model'] == 'cvae':
                learning_rate=cfg['learning_rate'],
                batch_size=cfg['batch_size'],
                beta=cfg['beta'],
-               n_samples=cfg['n_iw_samples']
+               n_samples=cfg['n_iw_samples'],
+               sigma_1=None,
 
     )
 elif cfg['model'] == 'idvae':
@@ -158,7 +184,8 @@ elif cfg['model'] == 'pvae':
     )
 elif cfg['model'] == 'vae':
     dataset = SimDataset(data)
-    train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
+    train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=True)
+
     vae = VAE(nitems=data.shape[1],
                dataloader=train_loader,
                latent_dims=cfg['mirt_dim'],
@@ -167,9 +194,12 @@ elif cfg['model'] == 'vae':
                learning_rate=cfg['learning_rate'],
                batch_size=cfg['batch_size'],
                beta=cfg['beta'],
-               n_samples=cfg['n_iw_samples']
+               n_samples=cfg['n_iw_samples'],
+               sigma_1 = None,
+               cor_theta=cfg['cor_theta']
 
     )
+
 else:
     raise Exception("Invalid model type")
 
@@ -201,16 +231,38 @@ elif cfg['model'] == 'pvae':
     item_ids, ratings, _, _ = next(iter(train_loader))
     theta_est, log_sigma_est = vae.encoder(item_ids, ratings)
 
-sigma_est = torch.exp(log_sigma_est)
+
+mu = theta_est.unsqueeze(0)
+sigma = log_sigma_est.unsqueeze(0)
+_, _, theta_est = vae.sampler(mu, 0)
+theta_est = theta_est.squeeze()
+
+
+
+#sigma_est = torch.exp(log_sigma_est)
 theta_est = theta_est.detach().cpu().numpy()
 total_runtime = time.time()-start
 
-sigma_est = sigma_est.detach().cpu().numpy()
+
+
+sigma_est = log_sigma_est.detach().cpu().numpy()
 print(f'total time: {time.time()-start}')
 if cfg['mirt_dim'] == 1:
     theta = np.expand_dims(theta, 1)
 # invert factors for increased interpretability
 a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
+
+
+# W = vae.sampler.extract_cholesky_factor().detach().numpy()
+#
+# cov = W@W.T
+# R = cov2cor(cov)
+# print(cov)
+# print(np.cov(theta_est.T))
+
+#a_est = a_est @ np.diag(np.sqrt(np.diag(cov)))
+
+print(np.corrcoef(theta_est.T))
 
 mse_a = f'{MSE(a_est, a)}\n'
 # bias_a = f'{np.mean(a_est-a)}\n'
@@ -225,7 +277,28 @@ mse_theta = f'{MSE(theta_est, theta)}\n'
 print(mse_a)
 print(mse_d)
 print(mse_theta)
+
+
+# if hasattr(vae.transform, 'L'):
+#     L = torch.zeros((3, 3))  # create empty matrix for L
+#     L[0, 0] = 1
+#     triu_indices = torch.triu_indices(3, 3, offset=1)
+#     L[triu_indices[0], triu_indices[1]] = F.tanh(vae.transform.L)
 #
+#     L = L / (torch.square(L).sum(0).sqrt() + 1e4)  # scale so that sum of diagonal elements < 1
+#
+#     L = torch.add(L, torch.diag_embed(torch.sqrt(1 - torch.square(L).sum(0))))
+#
+#     ### Compute cholesky factor of covariance matrix
+#     # R = torch.matrix_exp(L) # matrix exponent to ensure cov matrix is positive definite
+#
+#     ### compute correlation matrix
+#     R = L.t() @ L
+#
+#     print(R)
+
+
+
 #
 #
 # lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
@@ -278,9 +351,9 @@ else:
     # plt.title('KL Divergence')
     # plt.savefig(f'./figures/simfit/kl_divergence.png')
 
-    if cfg['mirt_dim'] ==1:
-         a = np.expand_dims(a, 1)
-         theta = np.expand_dims(theta, 1)
+    #if cfg['mirt_dim'] ==1:
+    #     a = np.expand_dims(a, 1)
+    #     theta = np.expand_dims(theta, 1)
     # parameter estimation plot for a
     for dim in range(cfg['mirt_dim']):
         plt.figure()
@@ -289,8 +362,11 @@ else:
         ai_true = a[:,dim]
 
         mse = MSE(ai_est, ai_true)
+
         plt.scatter(y=ai_est, x=ai_true)
         plt.plot(ai_true, ai_true)
+        slope, intercept = np.polyfit(ai_true, ai_est, 1)  # Get slope and intercept of the regression line
+        plt.plot(ai_true, slope * np.array(ai_true) + intercept, '--', label='Regression Line', alpha=.3)  # Plot the regression line
         #for i, x in enumerate(ai_true):
         #    plt.text(ai_true[i], ai_est[i], i)
         plt.title(f'Parameter estimation plot: a{dim+1}, MSE={round(mse,4)}')
@@ -305,6 +381,8 @@ else:
         mse = MSE(thetai_est, thetai_true)
         plt.scatter(y=thetai_est, x=thetai_true)
         plt.plot(thetai_true, thetai_true)
+        slope, intercept = np.polyfit(thetai_true, thetai_est, 1)  # Get slope and intercept of the regression line
+        plt.plot(thetai_true, slope * np.array(thetai_true) + intercept, '--',label='Regression Line', alpha=.3)  # Plot the regression line
         plt.title(f'Parameter estimation plot: theta{dim+1}, MSE={round(mse,4)}')
         plt.xlabel('True values')
         plt.ylabel('Estimates')
@@ -318,7 +396,7 @@ else:
     plt.title(f'Parameter estimation plot: d, MSE={round(mse,4)}')
     plt.xlabel('True values')
     plt.ylabel('Estimates')
-    #plt.savefig(f'./figures/simfit/param_est_plot_d.png')
+    plt.savefig(f'./figures/simfit/param_est_plot_d.png')
 
 
 
