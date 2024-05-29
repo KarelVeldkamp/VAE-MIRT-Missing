@@ -55,3 +55,28 @@ def loglikelihood(a, d, theta, data):
     lll = np.sum(np.log(prob * data + (1-prob)*(1-data)))
 
     return lll
+
+
+def cov2cor(cov_matrix):
+    """
+    Convert a covariance matrix to a correlation matrix.
+
+    Parameters:
+    cov_matrix (np.ndarray): A square covariance matrix.
+
+    Returns:
+    np.ndarray: The corresponding correlation matrix.
+    """
+    # Compute the standard deviations
+    stddev = np.sqrt(np.diag(cov_matrix))
+
+    # Outer product of standard deviations
+    outer_stddev = np.outer(stddev, stddev)
+
+    # Create the correlation matrix
+    cor_matrix = cov_matrix / outer_stddev
+
+    # Fix any numerical issues that may have resulted in slightly off-diagonal values
+    np.fill_diagonal(cor_matrix, 1)
+
+    return cor_matrix

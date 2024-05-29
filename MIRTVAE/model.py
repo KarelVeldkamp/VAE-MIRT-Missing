@@ -41,8 +41,8 @@ class Encoder(pl.LightningModule):
         out = F.elu(self.dense1(x))
         mu =  self.densem(out)
         log_sigma = self.denses(out)
-        sigma = F.softplus(log_sigma)
-        return mu, sigma
+        #sigma = F.softplus(log_sigma)
+        return mu, log_sigma
 
 
 class SamplingLayer(pl.LightningModule):
@@ -57,7 +57,25 @@ class SamplingLayer(pl.LightningModule):
         error = self.N.sample(mu.shape)
         # potentially move error vector to GPU
         error = error.to(mu)
-        return mu + sigma * error
+        return mu + sigma.exp() * error
+
+
+class CholeskyLayer(nn.Module):
+    def __init__(self, ndim, n_samples):
+        super(CholeskyLayer, self).__init__()
+
+        self.weight = nn.Parameter(torch.eye(ndim))
+        self.n_samples = n_samples
+
+
+    def forward(self, theta):
+        L = torch.tril(self.weight, -1) + torch.eye(self.weight.shape[0]).to(self.weight)
+        L = L.repeat((self.n_samples, 1,1 ))
+
+        theta_hat =  torch.bmm(theta, L)
+
+
+        return theta_hat
 
 
 class ConditionalEncoder(pl.LightningModule):
@@ -208,7 +226,8 @@ class VAE(pl.LightningModule):
                  learning_rate: float,
                  batch_size: int,
                  beta: int = 1,
-                 n_samples: int = 1):
+                 n_samples: int = 1,
+                 cholesky: bool = False):
         """
         Initialisaiton
         :param latent_dims: number of latent dimensions
@@ -229,6 +248,11 @@ class VAE(pl.LightningModule):
 
         self.sampler = SamplingLayer()
 
+        if cholesky:
+            self.transform = CholeskyLayer(latent_dims, n_samples)
+        else:
+            self.transform = nn.Identity()
+
         self.decoder = Decoder(nitems, latent_dims, qm)
 
         self.lr = learning_rate
@@ -246,10 +270,13 @@ class VAE(pl.LightningModule):
         """
         mu, sigma = self.encoder(x)
         # reshape mu and log sigma in order to take multiple samples
+
+
         mu = mu.repeat(self.n_samples, 1, 1)
         sigma = sigma.repeat(self.n_samples, 1, 1)
         z = self.sampler(mu, sigma)
-        reco = self.decoder(z)
+        z_tranformed = self.transform(z)
+        reco = self.decoder(z_tranformed)
         return reco, mu, sigma, z
 
 
@@ -263,7 +290,7 @@ class VAE(pl.LightningModule):
         reco, mu, sigma, z = self(data)
 
         mask = torch.ones_like(data)
-        loss = self.loss(data, reco, mask, mu, sigma, z)
+        loss, _ = self.loss(data, reco, mask, mu, sigma, z)
 
         self.log('train_loss',loss)
 
@@ -273,25 +300,53 @@ class VAE(pl.LightningModule):
         return self.dataloader
 
     def loss(self, input, reco, mask, mu, sigma, z):
-        # calculate log likelihood
+        #calculate log likelihood
         input = input.unsqueeze(0).repeat(reco.shape[0], 1, 1) # repeat input k times (to match reco size)
         log_p_x_theta = ((input * reco).clamp(1e-7).log() + ((1 - input) * (1 - reco)).clamp(1e-7).log()) # compute log ll
         logll = (log_p_x_theta * mask).sum(dim=-1, keepdim=True) # set elements based on missing data to zero
-
+        #
         # calculate KL divergence
-        log_q_theta_x = torch.distributions.Normal(mu, sigma).log_prob(z).sum(dim = -1, keepdim = True) # log q(Theta|X)
+        log_q_theta_x = torch.distributions.Normal(mu, sigma.exp()).log_prob(z).sum(dim = -1, keepdim = True) # log q(Theta|X)
         log_p_theta = torch.distributions.Normal(torch.zeros_like(z).to(input), scale=torch.ones(mu.shape[2]).to(input)).log_prob(z).sum(dim = -1, keepdim = True) # log p(Theta)
         kl =  log_q_theta_x - log_p_theta # kl divergence
 
         # combine into ELBO
         elbo = logll - kl
-        # perform importance weighting
+        # # perform importance weighting
         with torch.no_grad():
-            w_tilda = (elbo - elbo.logsumexp(dim=0)).exp()
+            weight = (elbo - elbo.logsumexp(dim=0)).exp()
+        #
+        loss = (-weight * elbo).sum(0).mean()
 
-        loss = (-w_tilda * elbo).sum(0).mean()
 
-        return loss
+        return loss, weight
+
+    def fscores(self, batch, n_mc_samples=50):
+        data, mask = batch
+
+        if self.n_samples == 1:
+            mu, _ = self.encoder(data)
+            return mu.squeeze()
+        else:
+            scores = torch.empty((n_mc_samples, data.shape[0], self.latent_dims))
+            for i in range(n_mc_samples):
+                reco, mu, sigma, z = self(data)
+                loss, weight = self.loss(data, reco, mask, mu, sigma, z)
+
+                idxs = torch.distributions.Categorical(probs=weight.permute(1,2,0)).sample()
+
+                # Reshape idxs to match the dimensions required by gather
+                # Ensure idxs is of the correct type
+                idxs = idxs.long()
+
+                # Expand idxs to match the dimensions required for gather
+                idxs_expanded = idxs.unsqueeze(-1).expand(-1, -1, z.size(2))  # Shape [10000, 1, 3]
+
+                # Use gather to select the appropriate elements from z
+                output = torch.gather(z.transpose(0, 1), 1, idxs_expanded).squeeze().detach() # Shape [10000, 3]
+                scores[i, :, :] = output
+
+            return scores.mean(0)
 
 
 class CVAE(VAE):
@@ -334,7 +389,7 @@ class CVAE(VAE):
     def training_step(self, batch, batch_idx):
         # forward pass
         data, mask = batch
-        reco, mu, sigma, z  = self(data, mask)
+        reco, mu, sigma, z  = self((data, mask))
 
         loss = self.loss(data, reco, mask, mu, sigma, z)
 

@@ -29,15 +29,18 @@ with open("./config.yml", "r") as f:
 
 # overwrite configurations if command line arguments are provided
 if len(sys.argv) > 1:
-    cfg['N'] = int(sys.argv[1])
-    cfg['missing_percentage'] = float(sys.argv[2])
-    cfg["iteration"] = int(sys.argv[3])
-    cfg['model'] = sys.argv[4]
-    cfg['mirt_dim'] = int(sys.argv[5])
+    cfg["iteration"] = int(sys.argv[1])
+    cfg['n_iw_samples'] = int(sys.argv[2])
+    cfg['sample_cor'] = sys.argv[3].strip().strip('"').strip("'") == 'True'
+    cfg['cholesky'] = sys.argv[4].strip().strip('"').strip("'") == 'True'
+
 
 # simulate data
 if cfg['simulate']:
-    theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
+    covMat = np.full((cfg['mirt_dim'], cfg['mirt_dim']), cfg['covariance'])  # covariance matrix of dimensions
+    np.fill_diagonal(covMat, 1)
+    theta = np.random.multivariate_normal([0] * cfg['mirt_dim'], covMat, cfg['N'])  # draw values for the dimensions
+    #theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
 
     Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
 
@@ -106,7 +109,8 @@ if cfg['model'] == 'cvae':
                learning_rate=cfg['learning_rate'],
                batch_size=cfg['batch_size'],
                beta=cfg['beta'],
-               n_samples=cfg['n_iw_samples']
+               n_samples=cfg['n_iw_samples'],
+               cholesky=cfg['cholesky']
 
     )
 elif cfg['model'] == 'idvae':
@@ -120,7 +124,8 @@ elif cfg['model'] == 'idvae':
                learning_rate=cfg['learning_rate'],
                batch_size=cfg['batch_size'],
                beta=cfg['beta'],
-               n_samples=cfg['n_iw_samples']
+               n_samples=cfg['n_iw_samples'],
+               cholesky=cfg['cholesky']
 
     )
 elif cfg['model'] == 'ivae':
@@ -136,7 +141,8 @@ elif cfg['model'] == 'ivae':
                learning_rate=cfg['learning_rate'],
                batch_size=cfg['batch_size'],
                beta=cfg['beta'],
-               n_samples=cfg['n_iw_samples']
+               n_samples=cfg['n_iw_samples'],
+               cholesky=cfg['cholesky']
     )
 elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data)
@@ -154,7 +160,8 @@ elif cfg['model'] == 'pvae':
                mirt_dim=cfg['mirt_dim'],
                qm=Q,
                beta=cfg['beta'],
-               n_samples=cfg['n_iw_samples']
+               n_samples=cfg['n_iw_samples'],
+               cholesky=cfg['cholesky']
     )
 elif cfg['model'] == 'vae':
     dataset = SimDataset(data)
@@ -167,7 +174,8 @@ elif cfg['model'] == 'vae':
                learning_rate=cfg['learning_rate'],
                batch_size=cfg['batch_size'],
                beta=cfg['beta'],
-               n_samples=cfg['n_iw_samples']
+               n_samples=cfg['n_iw_samples'],
+               cholesky=cfg['cholesky']
 
     )
 else:
@@ -191,8 +199,9 @@ if cfg['model'] in ['cvae', 'iwae']:
 elif cfg['model'] in ['idvae', 'vae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
-    data, mask = next(iter(train_loader))
-    theta_est, log_sigma_est = vae.encoder(data)
+    batch = next(iter(train_loader))
+    _, log_sigma_est = vae.encoder(batch[0])
+    theta_est = vae.fscores(batch)
 elif cfg['model'] == 'ivae':
     theta_est, log_sigma_est = vae.encoder(vae.data)
 elif cfg['model'] == 'pvae':
@@ -201,9 +210,34 @@ elif cfg['model'] == 'pvae':
     item_ids, ratings, _, _ = next(iter(train_loader))
     theta_est, log_sigma_est = vae.encoder(item_ids, ratings)
 
+
 sigma_est = torch.exp(log_sigma_est)
-theta_est = theta_est.detach().cpu().numpy()
 total_runtime = time.time()-start
+
+if cfg['cholesky']:
+    if cfg['sample_cor']:
+        mu = theta_est.repeat(500, 1, 1)
+        sigma = log_sigma_est.repeat(500, 1, 1)
+        vae.transform.n_samples = 500
+        z = vae.sampler(mu, sigma)
+        z_transformed = vae.transform(z)
+
+
+
+        # For each of the 10000 elements, we need to compute the corss products
+        cov_matrix = torch.einsum('ijk,ijl->jkl', z_transformed, z_transformed) / (z_transformed.shape[0] - 1)
+
+        # Step 4: Convert the covariance matrix to a correlation matrix
+        std_dev = torch.sqrt(torch.diagonal(cov_matrix, dim1=-2, dim2=-1)).unsqueeze(-1)
+        est_cov_mat = (cov_matrix / (std_dev @ std_dev.transpose(-2, -1))).detach().numpy().mean(0)
+        est_cor_mat = np.abs(cov2cor(est_cov_mat))
+    else:
+        est_cor_mat = np.abs(np.corrcoef(theta_est.T.detach().numpy()))
+
+
+
+
+theta_est = theta_est.detach().cpu().numpy()
 
 sigma_est = sigma_est.detach().cpu().numpy()
 print(f'total time: {time.time()-start}')
@@ -213,50 +247,56 @@ if cfg['mirt_dim'] == 1:
 a_est, theta_est = inv_factors(a_est=a_est, theta_est=theta_est, a_true=a)
 
 mse_a = f'{MSE(a_est, a)}\n'
-# bias_a = f'{np.mean(a_est-a)}\n'
-# var_a = f'{np.var(a_est)}\n'
+bias_a = f'{np.mean(a_est-a)}\n'
+var_a = f'{np.var(a_est)}\n'
 mse_d = f'{MSE(d_est, b)}\n'
-# bias_d = f'{np.mean(d_est-b)}\n'
-# var_d = f'{np.var(d_est)}\n'
+bias_d = f'{np.mean(d_est-b)}\n'
+var_d = f'{np.var(d_est)}\n'
 mse_theta = f'{MSE(theta_est, theta)}\n'
-# bias_theta = f'{np.mean(theta_est-theta)}\n'
-# var_theta = f'{np.var(theta_est)}\n'
+bias_theta = f'{np.mean(theta_est-theta)}\n'
+var_theta = f'{np.var(theta_est)}\n'
 
-print(mse_a)
-print(mse_d)
-print(mse_theta)
+
+est_cor_mat = np.corrcoef(theta_est.T)
+est_cors = est_cor_mat[np.triu_indices(est_cor_mat.shape[0], k=1)]
+true_cors = covMat[np.triu_indices(covMat.shape[0], k=1)]
+
+mse_cor = f'{MSE(est_cors, true_cors)}\n'
+
+print(f'mse theta: {mse_theta}')
+print(f'mse cor: {mse_cor}')
 #
 #
 #
-# lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
-# runtime = f'{runtime}\n'
+lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
+runtime = f'{runtime}\n'
 # ms = f'{np.mean(sigma_est)}\n'
 # ss = f'{np.std(sigma_est)}\n'
 #
 # # When run with command line arguments, save results to file
-# if len(sys.argv) > 1:
-#     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
-#         f.writelines([mse_a, mse_d, mse_theta, lll, runtime, ms, ss, bias_a, bias_d, bias_theta, var_a, var_d, var_theta])
 if len(sys.argv) > 1:
-    par_names = ['theta', 'a', 'd']
-    par = []
-    value = []
-    par_i = []
-    par_j = []
-    for i, est in enumerate([theta_est, a_est, np.expand_dims(d_est, 1)]):
-        for r in range(est.shape[0]):
-            for c in range(est.shape[1]):
-                par.append(par_names[i])
-                value.append(est[r, c])
-                par_i.append(r)
-                par_j.append(c)
-
-    result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
-                           'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'i':par_i, 'j':par_j, 'value': value})
-
-    #result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv", index=False)
     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
-        f.write('%.5f' % total_runtime)
+        f.writelines([mse_a, mse_d, mse_theta, mse_cor, lll, runtime, bias_a, bias_d, bias_theta, var_a, var_d, var_theta])
+# if len(sys.argv) > 1:
+#     par_names = ['theta', 'a', 'd']
+#     par = []
+#     value = []
+#     par_i = []
+#     par_j = []
+#     for i, est in enumerate([theta_est, a_est, np.expand_dims(d_est, 1)]):
+#         for r in range(est.shape[0]):
+#             for c in range(est.shape[1]):
+#                 par.append(par_names[i])
+#                 value.append(est[r, c])
+#                 par_i.append(r)
+#                 par_j.append(c)
+#
+#     result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
+#                            'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'i':par_i, 'j':par_j, 'value': value})
+#
+#     #result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv", index=False)
+#     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
+#         f.write('%.5f' % total_runtime)
 
 # otherwise, print results and plot figures
 else:
