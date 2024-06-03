@@ -258,9 +258,9 @@ if cfg['cholesky']:
 
 theta_est = theta_est.detach().cpu().numpy()
 
-pd.DataFrame(a_est).to_csv('~/Documents/corvae/a_est.csv')
-pd.DataFrame(d_est).to_csv('~/Documents/corvae/d_est.csv')
-pd.DataFrame(theta_est).to_csv('~/Documents/corvae/theta_est.csv')
+# pd.DataFrame(a_est).to_csv('~/Documents/corvae/a_est.csv')
+# pd.DataFrame(d_est).to_csv('~/Documents/corvae/d_est.csv')
+# pd.DataFrame(theta_est).to_csv('~/Documents/corvae/theta_est.csv')
 
 sigma_est = sigma_est.detach().cpu().numpy()
 print(f'total time: {time.time()-start}')
