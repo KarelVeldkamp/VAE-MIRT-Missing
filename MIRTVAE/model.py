@@ -38,6 +38,7 @@ class Encoder(pl.LightningModule):
         """
 
         # calculate s and mu based on encoder weights
+
         out = F.elu(self.dense1(x))
         mu =  self.densem(out)
         log_sigma = self.denses(out)
@@ -261,7 +262,7 @@ class VAE(pl.LightningModule):
         self.kl = 0
         self.n_samples = n_samples
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, mask: torch.Tensor):
         """
         forward pass though the entire network
         :param x: tensor representing response data
@@ -287,7 +288,7 @@ class VAE(pl.LightningModule):
         # forward pass
 
         data, mask = batch
-        reco, mu, sigma, z = self(data)
+        reco, mu, sigma, z = self(data, mask)
 
         mask = torch.ones_like(data)
         loss, _ = self.loss(data, reco, mask, mu, sigma, z)
@@ -330,7 +331,8 @@ class VAE(pl.LightningModule):
         else:
             scores = torch.empty((n_mc_samples, data.shape[0], self.latent_dims))
             for i in range(n_mc_samples):
-                reco, mu, sigma, z = self(data)
+                reco, mu, sigma, z = self(data, mask)
+
                 loss, weight = self.loss(data, reco, mask, mu, sigma, z)
 
                 idxs = torch.distributions.Categorical(probs=weight.permute(1,2,0)).sample()
@@ -389,9 +391,10 @@ class CVAE(VAE):
     def training_step(self, batch, batch_idx):
         # forward pass
         data, mask = batch
-        reco, mu, sigma, z  = self((data, mask))
+        reco, mu, sigma, z  = self(data, mask)
 
-        loss = self.loss(data, reco, mask, mu, sigma, z)
+        loss, _ = self.loss(data, reco, mask, mu, sigma, z)
+
 
         self.log('train_loss',loss)
 
@@ -416,6 +419,8 @@ class IVAE(VAE):
 
         self.data = data
         self.mask = mask
+
+
         # initialize missing values with (random) reconstruction based on decoder
         with torch.no_grad():
             z =torch.distributions.Normal(0, 1).sample([self.data.shape[0],self.latent_dims])
@@ -424,14 +429,14 @@ class IVAE(VAE):
 
 
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, m=None):
         """
         forward pass though the entire network
         :param x: tensor representing response data
         :param m: mask representing which data is missing
         :return: tensor representing a reconstruction of the input response data
         """
-        mu, sigma = self.encoder(x)
+        mu, sigma = self.encoder(x.to(self.device))
         # repeat mu and sigma as often as we want to draw samples:
         mu = mu.repeat(self.n_samples, 1, 1)
         sigma = sigma.repeat(self.n_samples, 1, 1)
@@ -439,18 +444,20 @@ class IVAE(VAE):
 
         reco = self.decoder(z)
 
+
+
         return reco, mu, sigma, z
 
     def training_step(self, batch, batch_idx):
         # determine which rows are part of this batch
         begin = batch_idx*self.batch_size
         end = (1+batch_idx)*self.batch_size
-        batch = self.data[begin:end, :].clone().detach()
-        mask = self.mask[begin:end, :]
+        batch = self.data[begin:end, :].clone().detach().to(self.device)
+        mask = self.mask[begin:end, :].to(self.device)
 
         reco, mu, sigma, z = self(batch)
 
-        loss = self.loss(batch, reco, mask, mu, sigma, z)
+        loss, _ = self.loss(batch, reco, mask, mu, sigma, z)
 
         self.log('train_loss',loss)
 
@@ -480,7 +487,6 @@ class PVAE(VAE):
                  h_hidden_dim: int,
                  latent_dim: int,
                  hidden_layer_dim: int,
-                 mirt_dim: int,
                  **kwargs):
         """
 
@@ -494,8 +500,8 @@ class PVAE(VAE):
         """"""
         """
         super(PVAE, self).__init__(**kwargs)
-
-        self.encoder = PartialEncoder(self.nitems, emb_dim, h_hidden_dim, latent_dim, hidden_layer_dim, mirt_dim)
+        self.mirt_dim = kwargs['latent_dims']
+        self.encoder = PartialEncoder(self.nitems, emb_dim, h_hidden_dim, latent_dim, hidden_layer_dim, self.mirt_dim)
 
 
     def forward(self, item_ids, ratings):
@@ -520,12 +526,41 @@ class PVAE(VAE):
 
 
         # calculate the likelihood, and take the mean of all non missing elements
-        loss = self.loss(output, reco, mask, mu, sigma, z)
+        loss, _ = self.loss(output, reco, mask, mu, sigma, z)
 
         # self.log('binary_cross_entropy', bce)
         # self.log('kl_divergence', self.kl)
         self.log('train_loss', loss)
         return {'loss': loss}
+
+    def fscores(self, batch, n_mc_samples=50):
+        item_ids, ratings, data, mask = batch
+
+        if self.n_samples == 1:
+            mu, _ = self.encoder(item_ids, ratings)
+            return mu.squeeze()
+        else:
+            scores = torch.empty((n_mc_samples, data.shape[0], self.mirt_dim))
+
+            for i in range(n_mc_samples):
+                reco, mu, sigma, z = self(item_ids, ratings)
+                loss, weight = self.loss(data, reco, mask, mu, sigma, z)
+
+                idxs = torch.distributions.Categorical(probs=weight.permute(1, 2, 0)).sample()
+
+                # Reshape idxs to match the dimensions required by gather
+                # Ensure idxs is of the correct type
+                idxs = idxs.long()
+
+                # Expand idxs to match the dimensions required for gather
+                idxs_expanded = idxs.unsqueeze(-1).expand(-1, -1, z.size(2))  # Shape [10000, 1, 3]
+
+                # Use gather to select the appropriate elements from z
+                output = torch.gather(z.transpose(0, 1), 1, idxs_expanded).squeeze().detach()  # Shape [10000, 3]
+
+                scores[i, :, :] = output
+
+            return scores.mean(0)
 
 
 class IDVAE(VAE):
@@ -542,7 +577,7 @@ class IDVAE(VAE):
         super(IDVAE, self).__init__(**kwargs)
         #self.automatic_optimization = False
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, m: torch.Tensor=None):
         """
         forward pass though the entire network
         :param x: tensor representing response data
@@ -564,7 +599,7 @@ class IDVAE(VAE):
         reco, mu, sigma, z = self(data)
 
         # calculate loss
-        loss = self.loss(data, reco, mask, mu, sigma, z)
+        loss, _ = self.loss(data, reco, mask, mu, sigma, z)
 
         self.log('train_loss',loss)
 

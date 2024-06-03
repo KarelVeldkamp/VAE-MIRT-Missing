@@ -37,6 +37,7 @@ if len(sys.argv) > 1:
 
 # simulate data
 if cfg['simulate']:
+    np.random.seed(cfg['iteration'])
     covMat = np.full((cfg['mirt_dim'], cfg['mirt_dim']), cfg['covariance'])  # covariance matrix of dimensions
     np.fill_diagonal(covMat, 1)
     theta = np.random.multivariate_normal([0] * cfg['mirt_dim'], covMat, cfg['N'])  # draw values for the dimensions
@@ -53,6 +54,13 @@ if cfg['simulate']:
 
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
+
+    pd.DataFrame(data).to_csv('~/Documents/corvae/data.csv')
+    pd.DataFrame(theta).to_csv('~/Documents/corvae/theta_true.csv')
+    pd.DataFrame(a).to_csv('~/Documents/corvae/a_true.csv')
+    pd.DataFrame(b).to_csv('~/Documents/corvae/d.csv')
+
+
 else:
     #it = cfg["iteration"]
     it =1
@@ -69,9 +77,11 @@ else:
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
 
+
+
 # potentially save data to disk
 if cfg['save']:
-    #np.savetxt(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', data, delimiter=",")
+    np.savetxt(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', data, delimiter=",")
     np.savetxt(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', a, delimiter=",")
     np.savetxt(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', b, delimiter=",")
     np.savetxt(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', theta, delimiter=",")
@@ -149,7 +159,6 @@ elif cfg['model'] == 'pvae':
     train_loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=False)
     vae = PVAE(nitems=Q.shape[0],
                dataloader=train_loader,
-               latent_dims=1,
                hidden_layer_size=1,
                learning_rate=cfg['learning_rate'],
                batch_size=cfg['batch_size'],
@@ -157,11 +166,11 @@ elif cfg['model'] == 'pvae':
                h_hidden_dim=cfg['p_hidden_dim'],
                latent_dim=cfg['p_latent_dim'],
                hidden_layer_dim=cfg['p_hidden_layer_dim'],
-               mirt_dim=cfg['mirt_dim'],
                qm=Q,
                beta=cfg['beta'],
                n_samples=cfg['n_iw_samples'],
-               cholesky=cfg['cholesky']
+               cholesky=cfg['cholesky'],
+               latent_dims=cfg['mirt_dim']
     )
 elif cfg['model'] == 'vae':
     dataset = SimDataset(data)
@@ -186,30 +195,38 @@ trainer.fit(vae)
 runtime = time.time()-start
 print(runtime)
 a_est = vae.decoder.weights.t().detach().numpy()
+print(f'a_est shape: {a_est.shape}')
 d_est = vae.decoder.bias.t().detach().numpy()
 #a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
 #d_est = vae.decoder.linear.bias.detach().cpu().numpy()
 vae = vae.to(device)
 
-if cfg['model'] in ['cvae', 'iwae']:
+
+if cfg['model'] in ['cvae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     data, mask = next(iter(train_loader))
-    theta_est, log_sigma_est  = vae.encoder(data, mask)
+    _, log_sigma_est  = vae.encoder(data, mask)
+    theta_est = vae.fscores((data, mask))
 elif cfg['model'] in ['idvae', 'vae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     batch = next(iter(train_loader))
     _, log_sigma_est = vae.encoder(batch[0])
-    theta_est = vae.fscores(batch)
+    theta_est = vae.fscores((batch[0], batch[1]))
 elif cfg['model'] == 'ivae':
-    theta_est, log_sigma_est = vae.encoder(vae.data)
+    _, log_sigma_est = vae.encoder(vae.data)
+    theta_est = vae.fscores((vae.data, vae.mask))
 elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
-    item_ids, ratings, _, _ = next(iter(train_loader))
-    theta_est, log_sigma_est = vae.encoder(item_ids, ratings)
+    item_ids, ratings, data, mask = next(iter(train_loader))
+    _, log_sigma_est = vae.encoder(item_ids, ratings)
+    theta_est = vae.fscores((item_ids, ratings, data, mask))
 
+#
+# pd.DataFrame(a_est).to_csv('~/Documents/corvae/a_est.csv')
+# pd.DataFrame(d_est).to_csv('~/Documents/corvae/d_est.csv')
 
 sigma_est = torch.exp(log_sigma_est)
 total_runtime = time.time()-start
@@ -239,6 +256,10 @@ if cfg['cholesky']:
 
 theta_est = theta_est.detach().cpu().numpy()
 
+pd.DataFrame(a_est).to_csv('~/Documents/corvae/a_est.csv')
+pd.DataFrame(d_est).to_csv('~/Documents/corvae/d_est.csv')
+pd.DataFrame(theta_est).to_csv('~/Documents/corvae/theta_est.csv')
+
 sigma_est = sigma_est.detach().cpu().numpy()
 print(f'total time: {time.time()-start}')
 if cfg['mirt_dim'] == 1:
@@ -257,6 +278,7 @@ bias_theta = f'{np.mean(theta_est-theta)}\n'
 var_theta = f'{np.var(theta_est)}\n'
 
 
+
 est_cor_mat = np.corrcoef(theta_est.T)
 est_cors = est_cor_mat[np.triu_indices(est_cor_mat.shape[0], k=1)]
 true_cors = covMat[np.triu_indices(covMat.shape[0], k=1)]
@@ -265,9 +287,7 @@ mse_cor = f'{MSE(est_cors, true_cors)}\n'
 
 print(f'mse theta: {mse_theta}')
 print(f'mse cor: {mse_cor}')
-#
-#
-#
+
 lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
 runtime = f'{runtime}\n'
 # ms = f'{np.mean(sigma_est)}\n'

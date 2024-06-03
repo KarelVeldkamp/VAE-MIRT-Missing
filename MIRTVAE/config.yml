@@ -8,19 +8,19 @@ configs:
   single_epoch_test_run: False
   # data simulation parameters:
   simulate: True
-  save: False
-  missing_percentage: 0
+  save: True
+  missing_percentage: 0.75
   N: 10000
   covariance: 0.3
   iteration: 1
   # General model parameters:
-  model: 'vae'
+  model: 'cvae'
   mirt_dim: 3
   hidden_layer_size: 20
   hidden_layer_size2: 20
   beta: 1
   n_iw_samples: 25
-  cholesky: True
+  cholesky: False
   sample_cor: True
   # parameters when model=='pvae':
   p_emb_dim: 12
