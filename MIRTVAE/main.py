@@ -54,11 +54,11 @@ if cfg['simulate']:
 
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
-
-    pd.DataFrame(data).to_csv('~/Documents/corvae/data.csv')
-    pd.DataFrame(theta).to_csv('~/Documents/corvae/theta_true.csv')
-    pd.DataFrame(a).to_csv('~/Documents/corvae/a_true.csv')
-    pd.DataFrame(b).to_csv('~/Documents/corvae/d.csv')
+    #
+    # pd.DataFrame(data).to_csv('~/Documents/corvae/data.csv')
+    # pd.DataFrame(theta).to_csv('~/Documents/corvae/theta_true.csv')
+    # pd.DataFrame(a).to_csv('~/Documents/corvae/a_true.csv')
+    # pd.DataFrame(b).to_csv('~/Documents/corvae/d.csv')
 
 
 else:
