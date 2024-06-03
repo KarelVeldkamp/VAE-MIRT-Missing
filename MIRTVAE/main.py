@@ -71,7 +71,8 @@ else:
     print(theta.shape)
     print(a.shape)
     print(b.shape)
-    Q = pd.read_csv(f'./parameters/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+    Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
+
 
     exponent = np.dot(theta, a.T) + b
     prob = np.exp(exponent) / (1 + np.exp(exponent))
