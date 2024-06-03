@@ -31,8 +31,8 @@ with open("./config.yml", "r") as f:
 if len(sys.argv) > 1:
     cfg["iteration"] = int(sys.argv[1])
     cfg['n_iw_samples'] = int(sys.argv[2])
-    cfg['sample_cor'] = sys.argv[3].strip().strip('"').strip("'") == 'True'
-    cfg['cholesky'] = sys.argv[4].strip().strip('"').strip("'") == 'True'
+    cfg['model'] = sys.argv[3]
+    cfg['missing_percentage'] = float(sys.argv[4])
 
 
 # simulate data
@@ -85,6 +85,7 @@ if cfg['save']:
     np.savetxt(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', a, delimiter=",")
     np.savetxt(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', b, delimiter=",")
     np.savetxt(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', theta, delimiter=",")
+    exit()
 
 # introduce missingness
 np.random.seed(cfg['iteration'])
