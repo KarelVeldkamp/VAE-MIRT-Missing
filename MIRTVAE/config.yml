@@ -8,7 +8,7 @@ configs:
   single_epoch_test_run: False
   # data simulation parameters:
   simulate: True
-  save: True
+  save: False
   missing_percentage: 0.75
   N: 10000
   covariance: 0.3
@@ -19,7 +19,7 @@ configs:
   hidden_layer_size: 20
   hidden_layer_size2: 20
   beta: 1
-  n_iw_samples: 25
+  n_iw_samples: 1
   cholesky: False
   sample_cor: True
   # parameters when model=='pvae':

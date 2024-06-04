@@ -326,7 +326,7 @@ class VAE(pl.LightningModule):
         data, mask = batch
 
         if self.n_samples == 1:
-            mu, _ = self.encoder(data)
+            mu, _ = self.encoder(data, mask)
             return mu.squeeze()
         else:
             scores = torch.empty((n_mc_samples, data.shape[0], self.latent_dims))
