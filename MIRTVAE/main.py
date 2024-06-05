@@ -33,6 +33,7 @@ if len(sys.argv) > 1:
     cfg['n_iw_samples'] = int(sys.argv[2])
     cfg['model'] = sys.argv[3]
     cfg['missing_percentage'] = float(sys.argv[4])
+    cfg['mirt_dim'] = int(sys.argv(5))
 
 
 # simulate data
@@ -210,22 +211,26 @@ if cfg['model'] in ['cvae']:
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     data, mask = next(iter(train_loader))
     _, log_sigma_est  = vae.encoder(data, mask)
-    theta_est = vae.fscores((data, mask))
+    post_samples = vae.fscores((data, mask), cfg['model'])
 elif cfg['model'] in ['idvae', 'vae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     batch = next(iter(train_loader))
     _, log_sigma_est = vae.encoder(batch[0])
-    theta_est = vae.fscores((batch[0], batch[1]))
+    post_samples = vae.fscores((batch[0], batch[1]), cfg['model'])
 elif cfg['model'] == 'ivae':
     _, log_sigma_est = vae.encoder(vae.data)
-    theta_est = vae.fscores((vae.data, vae.mask))
+    post_samples = vae.fscores((vae.data, vae.mask), cfg['model'])
 elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
     item_ids, ratings, data, mask = next(iter(train_loader))
     _, log_sigma_est = vae.encoder(item_ids, ratings)
-    theta_est = vae.fscores((item_ids, ratings, data, mask))
+    post_samples = vae.fscores((item_ids, ratings, data, mask), cfg['model'])
+
+
+theta_est = post_samples.mean(0)
+est_cor = np.abs(np.corrcoef(post_samples[0,:,:].detach().numpy()))
 
 #
 # pd.DataFrame(a_est).to_csv('~/Documents/corvae/a_est.csv')
@@ -286,6 +291,8 @@ est_cor_mat = np.corrcoef(theta_est.T)
 est_cors = est_cor_mat[np.triu_indices(est_cor_mat.shape[0], k=1)]
 true_cors = covMat[np.triu_indices(covMat.shape[0], k=1)]
 
+print(est_cor_mat)
+
 mse_cor = f'{MSE(est_cors, true_cors)}\n'
 
 print(f'mse theta: {mse_theta}')
@@ -296,9 +303,11 @@ runtime = f'{runtime}\n'
 # ms = f'{np.mean(sigma_est)}\n'
 # ss = f'{np.std(sigma_est)}\n'
 #
+
 # # When run with command line arguments, save results to file
 if len(sys.argv) > 1:
     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
+
         f.writelines([mse_a, mse_d, mse_theta, mse_cor, lll, runtime, bias_a, bias_d, bias_theta, var_a, var_d, var_theta])
 # if len(sys.argv) > 1:
 #     par_names = ['theta', 'a', 'd']

@@ -322,16 +322,22 @@ class VAE(pl.LightningModule):
 
         return loss, weight
 
-    def fscores(self, batch, n_mc_samples=50):
+    def fscores(self, batch, model, n_mc_samples=50):
         data, mask = batch
 
         if self.n_samples == 1:
-            mu, _ = self.encoder(data, mask)
-            return mu.squeeze()
+            if model == 'cvae':
+                mu, _ = self.encoder(data, mask)
+            else:
+                mu, _ = self.encoder(data)
+            return mu.unsqueeze(0)
         else:
             scores = torch.empty((n_mc_samples, data.shape[0], self.latent_dims))
             for i in range(n_mc_samples):
-                reco, mu, sigma, z = self(data, mask)
+                if model == 'cvae':
+                    reco, mu, sigma, z = self(data, mask)
+                else:
+                    reco, mu, sigma, z = self(data)
 
                 loss, weight = self.loss(data, reco, mask, mu, sigma, z)
 
@@ -348,7 +354,7 @@ class VAE(pl.LightningModule):
                 output = torch.gather(z.transpose(0, 1), 1, idxs_expanded).squeeze().detach() # Shape [10000, 3]
                 scores[i, :, :] = output
 
-            return scores.mean(0)
+            return scores
 
 
 class CVAE(VAE):
@@ -429,7 +435,7 @@ class IVAE(VAE):
 
 
 
-    def forward(self, x: torch.Tensor, m=None):
+    def forward(self, x: torch.Tensor):
         """
         forward pass though the entire network
         :param x: tensor representing response data
@@ -533,12 +539,12 @@ class PVAE(VAE):
         self.log('train_loss', loss)
         return {'loss': loss}
 
-    def fscores(self, batch, n_mc_samples=50):
+    def fscores(self, batch, model='pvae', n_mc_samples=50):
         item_ids, ratings, data, mask = batch
 
         if self.n_samples == 1:
             mu, _ = self.encoder(item_ids, ratings)
-            return mu.squeeze()
+            return mu.unsqueeze(0)
         else:
             scores = torch.empty((n_mc_samples, data.shape[0], self.mirt_dim))
 
@@ -560,7 +566,7 @@ class PVAE(VAE):
 
                 scores[i, :, :] = output
 
-            return scores.mean(0)
+            return scores
 
 
 class IDVAE(VAE):
@@ -577,7 +583,7 @@ class IDVAE(VAE):
         super(IDVAE, self).__init__(**kwargs)
         #self.automatic_optimization = False
 
-    def forward(self, x: torch.Tensor, m: torch.Tensor=None):
+    def forward(self, x: torch.Tensor):
         """
         forward pass though the entire network
         :param x: tensor representing response data
