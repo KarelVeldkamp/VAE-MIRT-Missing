@@ -32,7 +32,7 @@ if len(sys.argv) > 1:
     cfg["iteration"] = int(sys.argv[1])
     cfg['n_iw_samples'] = int(sys.argv[2])
     cfg['model'] = sys.argv[3]
-    cfg['missing_percentage'] = float(sys.argv[4])
+    cfg['missing_percentage'] = sys.argv[4]
     cfg['mirt_dim'] = int(sys.argv[5])
 
 
@@ -51,7 +51,7 @@ if cfg['simulate']:
     a *= Q
     b = np.linspace(-2, 2, Q.shape[0], endpoint=True)  # eqally spaced values between -2 and 2 for the difficulty
 
-    exponent = np.dot(theta, a.T) + b
+    exponent = np.dot(theta, a.T) + bß
 
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
@@ -59,7 +59,7 @@ if cfg['simulate']:
     # introduce missingness
     np.random.seed(cfg['iteration'])
     indices = np.random.choice(data.shape[0] * data.shape[1], replace=False,
-                               size=int(data.shape[0] * data.shape[1] * cfg['missing_percentage']))
+                               size=int(data.shape[0] * data.shape[1] * float(cfg['missing_percentage'])))
     data[np.unravel_index(indices, data.shape)] = float('nan')
     data = torch.Tensor(data)
 
