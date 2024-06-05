@@ -33,7 +33,7 @@ if len(sys.argv) > 1:
     cfg['n_iw_samples'] = int(sys.argv[2])
     cfg['model'] = sys.argv[3]
     cfg['missing_percentage'] = float(sys.argv[4])
-    cfg['mirt_dim'] = int(sys.argv(5))
+    cfg['mirt_dim'] = int(sys.argv[5])
 
 
 # simulate data
