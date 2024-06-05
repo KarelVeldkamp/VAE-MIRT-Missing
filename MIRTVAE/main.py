@@ -51,7 +51,7 @@ if cfg['simulate']:
     a *= Q
     b = np.linspace(-2, 2, Q.shape[0], endpoint=True)  # eqally spaced values between -2 and 2 for the difficulty
 
-    exponent = np.dot(theta, a.T) + bß
+    exponent = np.dot(theta, a.T) + b
 
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
