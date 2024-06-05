@@ -55,6 +55,14 @@ if cfg['simulate']:
 
     prob = np.exp(exponent) / (1 + np.exp(exponent))
     data = np.random.binomial(1, prob).astype(float)
+
+    # introduce missingness
+    np.random.seed(cfg['iteration'])
+    indices = np.random.choice(data.shape[0] * data.shape[1], replace=False,
+                               size=int(data.shape[0] * data.shape[1] * cfg['missing_percentage']))
+    data[np.unravel_index(indices, data.shape)] = float('nan')
+    data = torch.Tensor(data)
+
     #
     # pd.DataFrame(data).to_csv('~/Documents/corvae/data.csv')
     # pd.DataFrame(theta).to_csv('~/Documents/corvae/theta_true.csv')
@@ -66,13 +74,11 @@ else:
     #it = cfg["iteration"]
     it =1
     covMat = np.full((cfg['mirt_dim'], cfg['mirt_dim']), cfg['covariance'])  # covariance matrix of dimensionss
-    data = pd.read_csv(f'./data/simulated/data_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
-    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
-    b = np.squeeze(pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy())
-    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{it}.csv', header=None, index_col=False).to_numpy()
-    print(theta.shape)
-    print(a.shape)
-    print(b.shape)
+    data = pd.read_csv(f'./data/simulated/data_{cfg["mirt_dim"]}_{it}_{cfg['missing_percentage']}.csv', header=None, index_col=False).to_numpy()
+    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{it}_{cfg['missing_percentage']}.csv', header=None, index_col=False).to_numpy()
+    b = np.squeeze(pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{it}_{cfg['missing_percentage']}.csv', header=None, index_col=False).to_numpy())
+    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{it}_{cfg['missing_percentage']}.csv', header=None, index_col=False).to_numpy()
+
     Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
 
 
@@ -84,17 +90,12 @@ else:
 
 # potentially save data to disk
 if cfg['save']:
-    np.savetxt(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', data, delimiter=",")
-    np.savetxt(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', a, delimiter=",")
-    np.savetxt(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', b, delimiter=",")
-    np.savetxt(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}.csv', theta, delimiter=",")
+    np.savetxt(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg['missing_percentage']}.csv', data, delimiter=",")
+    np.savetxt(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg['missing_percentage']}.csv', a, delimiter=",")
+    np.savetxt(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg['missing_percentage']}.csv', b, delimiter=",")
+    np.savetxt(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg['missing_percentage']}.csv', theta, delimiter=",")
     exit()
 
-# introduce missingness
-np.random.seed(cfg['iteration'])
-indices = np.random.choice(data.shape[0]*data.shape[1], replace=False, size=int(data.shape[0]*data.shape[1]*cfg['missing_percentage']))
-data[np.unravel_index(indices, data.shape)] = float('nan')
-data = torch.Tensor(data)
 
 # X = pd.read_csv('./data/missing/data.csv', index_col=0).to_numpy()
 # a = pd.read_csv('./data/missing/a.csv', index_col=0).to_numpy()
