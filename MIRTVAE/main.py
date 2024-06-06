@@ -222,6 +222,7 @@ elif cfg['model'] in ['idvae', 'vae']:
 elif cfg['model'] == 'ivae':
     _, log_sigma_est = vae.encoder(vae.data)
     post_samples = vae.fscores((vae.data, vae.mask), cfg['model'])
+    data = torch.Tensor(data)
 elif cfg['model'] == 'pvae':
     dataset = PartialDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
