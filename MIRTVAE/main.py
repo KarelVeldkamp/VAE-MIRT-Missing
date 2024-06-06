@@ -80,7 +80,7 @@ else:
     theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{it}_{cfg["missing_percentage"]}.csv', header=None, index_col=False).to_numpy()
 
     Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
-
+    data = torch.Tensor(data)
 
     # exponent = np.dot(theta, a.T) + b
     # prob = np.exp(exponent) / (1 + np.exp(exponent))
