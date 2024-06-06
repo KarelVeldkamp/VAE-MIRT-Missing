@@ -216,9 +216,9 @@ if cfg['model'] in ['cvae']:
 elif cfg['model'] in ['idvae', 'vae']:
     dataset = SimDataset(data, device)
     train_loader = DataLoader(dataset, batch_size=data.shape[0], shuffle=False)
-    batch = next(iter(train_loader))
-    _, log_sigma_est = vae.encoder(batch[0])
-    post_samples = vae.fscores((batch[0], batch[1]), cfg['model'])
+    data, mask = next(iter(train_loader))
+    _, log_sigma_est = vae.encoder(data)
+    post_samples = vae.fscores((data, mask), cfg['model'])
 elif cfg['model'] == 'ivae':
     _, log_sigma_est = vae.encoder(vae.data)
     post_samples = vae.fscores((vae.data, vae.mask), cfg['model'])
