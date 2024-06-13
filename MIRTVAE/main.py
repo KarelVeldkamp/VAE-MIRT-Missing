@@ -298,6 +298,8 @@ print(est_cor_mat)
 mse_cor = f'{MSE(est_cors, true_cors)}\n'
 
 print(f'mse theta: {mse_theta}')
+print(f'mse a: {mse_a}')
+print(f'mse d: {mse_d}')
 print(f'mse cor: {mse_cor}')
 
 lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'

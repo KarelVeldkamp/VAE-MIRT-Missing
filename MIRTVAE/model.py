@@ -124,9 +124,8 @@ class ConditionalEncoder(pl.LightningModule):
         #out = self.bn3(out)
         mu =  self.densem(out)
         log_sigma = self.denses(out)
-        sigma = F.softplus(log_sigma)
 
-        return mu, sigma
+        return mu, log_sigma
 
 
 class PartialEncoder(pl.LightningModule):
