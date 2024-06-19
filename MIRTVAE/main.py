@@ -187,7 +187,6 @@ trainer.fit(vae)
 runtime = time.time()-start
 print(runtime)
 a_est = vae.decoder.weights.t().detach().numpy()
-print(f'a_est shape: {a_est.shape}')
 d_est = vae.decoder.bias.t().detach().numpy()
 #a_est = vae.decoder.linear.weight.detach().cpu().numpy()[:, 0:cfg['mirt_dim']]
 #d_est = vae.decoder.linear.bias.detach().cpu().numpy()
@@ -261,13 +260,7 @@ bias_a = f'{np.mean(a_est-a)}\n'
 var_a = f'{np.var(a_est)}\n'
 mse_d = f'{MSE(d_est, b)}\n'
 bias_d = f'{np.mean(d_est-b)}\n'
-var_d = np.mean((d_est - d_est.mean())**2)
-print(var_d)
-biasd = np.mean(d_est-b)
-print(var_d+biasd**2)
-print(np.mean((d_est- b)**2))
-exit()
-var_d = f'{np.var(d_est, axis=0).mean()}\n'
+var_d = f'{np.var(d_est)}\n'
 mse_theta = f'{MSE(theta_est, theta)}\n'
 bias_theta = f'{np.mean(theta_est-theta)}\n'
 var_theta = f'{np.var(theta_est)}\n'
@@ -300,6 +293,8 @@ runtime = f'{runtime}\n'
 #
 
 # # When run with command line arguments, save results to file
+print(sys.argv)
+print()
 if len(sys.argv) > 1:
     print('saving data')
     # with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
