@@ -301,30 +301,30 @@ runtime = f'{runtime}\n'
 
 # # When run with command line arguments, save results to file
 if len(sys.argv) > 1:
-    with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
+    # with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
+    #
+    #     f.writelines([mse_a, mse_d, mse_theta, mse_cor,
+    #                   lll, runtime,
+    #                   bias_a, bias_d, bias_theta, bias_cor,
+    #                   var_a, var_d, var_theta, var_cor])
+    # save specifc parameter estimates
+    par_names = ['theta', 'a', 'd']
+    par = []
+    value = []
+    par_i = []
+    par_j = []
+    for i, est in enumerate([theta_est, a_est, np.expand_dims(d_est, 1)]):
+        for r in range(est.shape[0]):
+            for c in range(est.shape[1]):
+                par.append(par_names[i])
+                value.append(est[r, c])
+                par_i.append(r)
+                par_j.append(c)
 
-        f.writelines([mse_a, mse_d, mse_theta, mse_cor,
-                      lll, runtime,
-                      bias_a, bias_d, bias_theta, bias_cor,
-                      var_a, var_d, var_theta, var_cor])
-# if len(sys.argv) > 1:
-#     par_names = ['theta', 'a', 'd']
-#     par = []
-#     value = []
-#     par_i = []
-#     par_j = []
-#     for i, est in enumerate([theta_est, a_est, np.expand_dims(d_est, 1)]):
-#         for r in range(est.shape[0]):
-#             for c in range(est.shape[1]):
-#                 par.append(par_names[i])
-#                 value.append(est[r, c])
-#                 par_i.append(r)
-#                 par_j.append(c)
+    result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
+                           'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'i':par_i, 'j':par_j, 'value': value})
 #
-#     result = pd.DataFrame({'n': cfg['N'], 'missing': cfg['missing_percentage'], 'iteration': cfg['iteration'],
-#                            'model': cfg['model'], 'mirt_dim': cfg['mirt_dim'], 'parameter': par, 'i':par_i, 'j':par_j, 'value': value})
-#
-#     #result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv", index=False)
+    result.to_csv(f"../results/{'_'.join(sys.argv[1:])}.csv", index=False)
 #     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
 #         f.write('%.5f' % total_runtime)
 
