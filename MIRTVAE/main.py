@@ -38,18 +38,14 @@ if len(sys.argv) > 1:
 
 # simulate data
 if cfg['simulate']:
-    np.random.seed(cfg['iteration'])
-    covMat = np.full((cfg['mirt_dim'], cfg['mirt_dim']), cfg['covariance'])  # covariance matrix of dimensions
-    np.fill_diagonal(covMat, 1)
-    theta = np.random.multivariate_normal([0] * cfg['mirt_dim'], covMat, cfg['N'])  # draw values for the dimensions
-    #theta=np.random.normal(0,1,cfg['N']*cfg['mirt_dim']).reshape((cfg['N'], cfg['mirt_dim']))
-
-    Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
-
-
-    a = np.random.uniform(.5, 2, Q.shape[0] * cfg['mirt_dim']).reshape((Q.shape[0], cfg['mirt_dim']))  # draw discrimination parameters from uniform distribution
-    a *= Q
-    b = np.linspace(-2, 2, Q.shape[0], endpoint=True)  # eqally spaced values between -2 and 2 for the difficulty
+    covMat = np.full((cfg['mirt_dim'], cfg['mirt_dim']), cfg['covariance'])  # covariance matrix of dimensionss
+    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None,
+                    index_col=False).to_numpy()
+    b = np.squeeze(
+        pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None,
+                    index_col=False).to_numpy())
+    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv',
+                        header=None, index_col=False).to_numpy()
 
     exponent = np.dot(theta, a.T) + b
 
@@ -57,17 +53,10 @@ if cfg['simulate']:
     data = np.random.binomial(1, prob).astype(float)
 
     # introduce missingness
-    np.random.seed(cfg['iteration'])
     indices = np.random.choice(data.shape[0] * data.shape[1], replace=False,
                                size=int(data.shape[0] * data.shape[1] * float(cfg['missing_percentage'])))
     data[np.unravel_index(indices, data.shape)] = float('nan')
     data = torch.Tensor(data)
-
-    #
-    # pd.DataFrame(data).to_csv('~/Documents/corvae/data.csv')
-    # pd.DataFrame(theta).to_csv('~/Documents/corvae/theta_true.csv')
-    # pd.DataFrame(a).to_csv('~/Documents/corvae/a_true.csv')
-    # pd.DataFrame(b).to_csv('~/Documents/corvae/d.csv')
 
 
 else:
@@ -75,9 +64,9 @@ else:
     it =1
     covMat = np.full((cfg['mirt_dim'], cfg['mirt_dim']), cfg['covariance'])  # covariance matrix of dimensionss
     data = pd.read_csv(f'./data/simulated/data_{cfg["mirt_dim"]}_{it}_{cfg["missing_percentage"]}.csv', header=None, index_col=False).to_numpy()
-    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{it}_{cfg["missing_percentage"]}.csv', header=None, index_col=False).to_numpy()
-    b = np.squeeze(pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{it}_{cfg["missing_percentage"]}.csv', header=None, index_col=False).to_numpy())
-    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{it}_{cfg["missing_percentage"]}.csv', header=None, index_col=False).to_numpy()
+    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None, index_col=False).to_numpy()
+    b = np.squeeze(pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None, index_col=False).to_numpy())
+    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None, index_col=False).to_numpy()
 
     Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
     data = torch.Tensor(data)
@@ -86,14 +75,12 @@ else:
     # prob = np.exp(exponent) / (1 + np.exp(exponent))
     # data = np.random.binomial(1, prob).astype(float)
 
-
-
 # potentially save data to disk
 if cfg['save']:
     np.savetxt(f'./data/simulated/data_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg["missing_percentage"]}.csv', data, delimiter=",")
-    np.savetxt(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg["missing_percentage"]}.csv', a, delimiter=",")
-    np.savetxt(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg["missing_percentage"]}.csv', b, delimiter=",")
-    np.savetxt(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg["missing_percentage"]}.csv', theta, delimiter=",")
+    # np.savetxt(f'./parameters/simulated/a_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg["missing_percentage"]}.csv', a, delimiter=",")
+    # np.savetxt(f'./parameters/simulated/b_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg["missing_percentage"]}.csv', b, delimiter=",")
+    # np.savetxt(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_{cfg["iteration"]}_{cfg["missing_percentage"]}.csv', theta, delimiter=",")
     exit()
 
 
@@ -274,7 +261,13 @@ bias_a = f'{np.mean(a_est-a)}\n'
 var_a = f'{np.var(a_est)}\n'
 mse_d = f'{MSE(d_est, b)}\n'
 bias_d = f'{np.mean(d_est-b)}\n'
-var_d = f'{np.var(d_est)}\n'
+var_d = np.mean((d_est - d_est.mean())**2)
+print(var_d)
+biasd = np.mean(d_est-b)
+print(var_d+biasd**2)
+print(np.mean((d_est- b)**2))
+exit()
+var_d = f'{np.var(d_est, axis=0).mean()}\n'
 mse_theta = f'{MSE(theta_est, theta)}\n'
 bias_theta = f'{np.mean(theta_est-theta)}\n'
 var_theta = f'{np.var(theta_est)}\n'
@@ -295,6 +288,10 @@ print(f'mse theta: {mse_theta}')
 print(f'mse a: {mse_a}')
 print(f'mse d: {mse_d}')
 print(f'mse cor: {mse_cor}')
+print(f'var theta: {var_theta}')
+print(f'var a: {var_a}')
+print(f'var d: {var_d}')
+print(f'var cor: {var_cor}')
 
 lll = f'{loglikelihood(a_est, d_est, theta_est, data.numpy())}\n'
 runtime = f'{runtime}\n'

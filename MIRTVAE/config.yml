@@ -1,7 +1,7 @@
 configs:
   # general optimization parameters:
   batch_size: 32
-  max_epochs: 2000
+  max_epochs: 2
   learning_rate: .005
   min_delta: .0000008
   patience: 10
@@ -9,13 +9,13 @@ configs:
   # data simulation parameters:
   simulate: True
   save: False
-  missing_percentage: 0.5
+  missing_percentage: 0.25
   N: 10000
   covariance: 0
   iteration: 2
   # General model parameters:
   model: 'cvae'
-  mirt_dim: 9
+  mirt_dim: 3
   hidden_layer_size: 20
   hidden_layer_size2: 20
   beta: 1
