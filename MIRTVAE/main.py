@@ -301,6 +301,7 @@ runtime = f'{runtime}\n'
 
 # # When run with command line arguments, save results to file
 if len(sys.argv) > 1:
+    print('saving data')
     # with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
     #
     #     f.writelines([mse_a, mse_d, mse_theta, mse_cor,
