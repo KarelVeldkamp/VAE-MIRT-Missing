@@ -15,11 +15,11 @@ configs:
   iteration: 2
   # General model parameters:
   model: 'cvae'
-  mirt_dim: 3
+  mirt_dim: 9
   hidden_layer_size: 20
   hidden_layer_size2: 20
   beta: 1
-  n_iw_samples: 5
+  n_iw_samples: 25
   cholesky: False
   sample_cor: True
   # parameters when model=='pvae':

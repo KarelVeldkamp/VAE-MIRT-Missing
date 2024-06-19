@@ -232,7 +232,7 @@ elif cfg['model'] == 'pvae':
 
 
 theta_est = post_samples.mean(0)
-est_cor = np.abs(np.corrcoef(post_samples[0,:,:].detach().numpy()))
+
 
 #
 # pd.DataFrame(a_est).to_csv('~/Documents/corvae/a_est.csv')
@@ -241,25 +241,17 @@ est_cor = np.abs(np.corrcoef(post_samples[0,:,:].detach().numpy()))
 sigma_est = torch.exp(log_sigma_est)
 total_runtime = time.time()-start
 
-if cfg['cholesky']:
-    if cfg['sample_cor']:
-        mu = theta_est.repeat(500, 1, 1)
-        sigma = log_sigma_est.repeat(500, 1, 1)
-        vae.transform.n_samples = 500
-        z = vae.sampler(mu, sigma)
-        z_transformed = vae.transform(z)
 
+if cfg['sample_cor']:
+    # For each of the 10000 elements, we need to compute the corss products
+    cov_matrix = torch.einsum('ijk,ijl->jkl', post_samples, post_samples) / (post_samples.shape[0] - 1)
 
-
-        # For each of the 10000 elements, we need to compute the corss products
-        cov_matrix = torch.einsum('ijk,ijl->jkl', z_transformed, z_transformed) / (z_transformed.shape[0] - 1)
-
-        # Step 4: Convert the covariance matrix to a correlation matrix
-        std_dev = torch.sqrt(torch.diagonal(cov_matrix, dim1=-2, dim2=-1)).unsqueeze(-1)
-        est_cov_mat = (cov_matrix / (std_dev @ std_dev.transpose(-2, -1))).detach().numpy().mean(0)
-        est_cor_mat = np.abs(cov2cor(est_cov_mat))
-    else:
-        est_cor_mat = np.abs(np.corrcoef(theta_est.T.detach().numpy()))
+    # Step 4: Convert the covariance matrix to a correlation matrix
+    std_dev = torch.sqrt(torch.diagonal(cov_matrix, dim1=-2, dim2=-1)).unsqueeze(-1)
+    est_cov_mat = (cov_matrix / (std_dev @ std_dev.transpose(-2, -1))).detach().numpy().mean(0)
+    est_cor_mat = np.abs(cov2cor(est_cov_mat))
+else:
+    est_cor_mat = np.abs(np.corrcoef(theta_est.T.detach().numpy()))
 
 
 
@@ -289,13 +281,15 @@ var_theta = f'{np.var(theta_est)}\n'
 
 
 
-est_cor_mat = np.corrcoef(theta_est.T)
+#est_cor_mat = np.corrcoef(theta_est.T)
 est_cors = est_cor_mat[np.triu_indices(est_cor_mat.shape[0], k=1)]
 true_cors = covMat[np.triu_indices(covMat.shape[0], k=1)]
 
 print(est_cor_mat)
 
 mse_cor = f'{MSE(est_cors, true_cors)}\n'
+bias_cor =  f'{np.mean(est_cors-true_cors)}\n'
+var_cor = f'{np.var(est_cors)}'
 
 print(f'mse theta: {mse_theta}')
 print(f'mse a: {mse_a}')
@@ -312,7 +306,10 @@ runtime = f'{runtime}\n'
 if len(sys.argv) > 1:
     with open(f"../results/{'_'.join(sys.argv[1:])}.txt", 'w') as f:
 
-        f.writelines([mse_a, mse_d, mse_theta, mse_cor, lll, runtime, bias_a, bias_d, bias_theta, var_a, var_d, var_theta])
+        f.writelines([mse_a, mse_d, mse_theta, mse_cor,
+                      lll, runtime,
+                      bias_a, bias_d, bias_theta, bias_cor,
+                      var_a, var_d, var_theta, var_cor])
 # if len(sys.argv) > 1:
 #     par_names = ['theta', 'a', 'd']
 #     par = []
