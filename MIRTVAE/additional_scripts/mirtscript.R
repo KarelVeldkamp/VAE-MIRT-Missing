@@ -107,7 +107,7 @@ if (mirt_dim == 1){
          f9 = 81-100
          f10 = 91-110
          COV=f1*f2*f3*f4*f5*f6*f7*f8*f9*f10'
-  method='QMCEM'
+  method='MHRM'
 } else {
   stop(paste0('q matrix not implementented for', 0, 'dimensions'))
 }
@@ -119,7 +119,7 @@ fit =mirt(data,
           randompars = T,
           technical=list())
 runtime = as.numeric(difftime(Sys.time(), start, units='secs'))
-itempars <- coef(fit, simplify = TRUE)$items
+itempars <- coef(fit, simplify = TRUE, )$items
 a_est <- itempars[,1:(ncol(itempars)-3)]
 d_est <- itempars[, ncol(itempars)-2]
 
@@ -148,8 +148,7 @@ for (i in 1:mirt_dim){
 }
 est_cor = abs(est_cor)
 
-
-
+d_est = d_est - mean(d_est)-mean(b)
 
 
 mse_a = MSE(a_est, a)
@@ -178,9 +177,44 @@ lll = logLik(fit)
 # save results
 fileConn<-file(paste0('~/vae/MIRT-VAE-Qmatrix/results/mirt_',iteration, '_', missing, '_', mirt_dim, '.txt'))
 writeLines(c(as.character(mse_a), as.character(mse_d), as.character(mse_theta), as.character(mse_cor),
-             as.character(lll), as.character(runtime), 
-             as.character(bias_a), as.character(bias_d), as.character(bias_theta), as.character(bias_cor),
-             as.character(var_a), as.character(var_d), as.character(var_theta)), as.character(bias_theta), fileConn)
+            as.character(lll), as.character(runtime),
+            as.character(bias_a), as.character(bias_d), as.character(bias_theta), as.character(bias_cor),
+            as.character(var_a), as.character(var_d), as.character(var_theta)), as.character(bias_theta), fileConn)
 close(fileConn)
 
+# par_names <- c('theta', 'a', 'd')
+# par <- c()
+# value <- c()
+# par_i <- c()
+# par_j <- c()
+# 
+# 
+# ests <- list(theta_est, a_est, array(d_est, dim = c(length(d_est), 1)))
+# 
+# for (i in seq_along(ests)) {
+#   est <- ests[[i]]
+#   for (r in seq_len(nrow(est))) {
+#     for (c in seq_len(ncol(est))) {
+#       par <- c(par, par_names[i])
+#       value <- c(value, est[r, c])
+#       par_i <- c(par_i, r)
+#       par_j <- c(par_j, c)
+#     }
+#   }
+# }
+# 
+# result <- data.frame(
+#   n = cfg$N,
+#   missing = missing,
+#   iteration = iteration,
+#   model = model,
+#   mirt_dim = mirt_dim,
+#   parameter = par,
+#   i = par_i,
+#   j = par_j,
+#   value = value
+# )
+# 
+# print('saving')
 
+write.csv(result, paste0('./MIRT-VAE-Qmatrix/results/results/mirt_', paste(args, collapse = '_'), '.csv'))

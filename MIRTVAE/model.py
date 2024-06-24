@@ -368,7 +368,6 @@ class CVAE(VAE):
         :param qm: IxD Q-matrix specifying which items i<I load on which dimensions d<D
         """
         super(CVAE, self).__init__(**kwargs)
-        print(kwargs)
         self.encoder = ConditionalEncoder(self.nitems,
                                           self.latent_dims,
                                           self.hidden_layer_size
