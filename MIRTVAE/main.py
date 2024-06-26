@@ -39,12 +39,12 @@ if len(sys.argv) > 1:
 # simulate data
 if cfg['simulate']:
     covMat = np.full((cfg['mirt_dim'], cfg['mirt_dim']), cfg['covariance'])  # covariance matrix of dimensionss
-    a = pd.read_csv(f'./parameters/simulated/a_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None,
+    a = pd.read_csv(f'./parameters/simulated/a_cor_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None,
                     index_col=False).to_numpy()
     b = np.squeeze(
-        pd.read_csv(f'./parameters/simulated/b_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None,
+        pd.read_csv(f'./parameters/simulated/b_cor_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv', header=None,
                     index_col=False).to_numpy())
-    theta = pd.read_csv(f'./parameters/simulated/theta_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv',
+    theta = pd.read_csv(f'./parameters/simulated/theta_cor_{cfg["mirt_dim"]}_1_{cfg["missing_percentage"]}.csv',
                         header=None, index_col=False).to_numpy()
     Q = pd.read_csv(f'./QMatrices/QMatrix{cfg["mirt_dim"]}D.csv', header=None).values
 
