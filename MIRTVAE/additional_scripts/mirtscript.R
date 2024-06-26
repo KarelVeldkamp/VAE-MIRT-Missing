@@ -13,9 +13,10 @@ library(MASS)  # for mvrnorm
 library(data.table)  # for fread
 
 # Configuration
-cfg <- list(covariance = .4, 
+cfg <- list(covariance = 0.4, 
             N = 10000,
-            simulate= T)
+            simulate= T,
+            save=T)
 
 
 if (cfg$simulate){
@@ -42,6 +43,14 @@ if (cfg$simulate){
   colnames(data) = as.character(1:ncol(data))
   data[sample(1:length(data), ceiling(length(data)*missing))]=NA
   print(mean(is.na(data)))  
+  if (cfg$save){
+    write.csv(data, '~/vae/MIRT-VAE-Qmatrix/data/simulated/data_cor_10_1_.5.csv')
+    write.csv(a, '~/vae/MIRT-VAE-Qmatrix/data/simulated/a_cor_10_1_.5.csv')
+    write.csv(b, '~/vae/MIRT-VAE-Qmatrix/data/simulated/b_cor_10_1_.5.csv')
+    write.csv(theta, '~/vae/MIRT-VAE-Qmatrix/data/simulated/theta_cor_10_1_.5.csv')
+    exit()
+    
+  }
 }else{
   covMat <- matrix(cfg$covariance, nrow = mirt_dim, ncol = mirt_dim)
   data = as.matrix(read.csv(paste0('./MIRT-VAE-Qmatrix/MIRTVAE/data/simulated/data_', mirt_dim, '_',iteration, '_', missing, '.csv'), header = F))
@@ -217,4 +226,4 @@ close(fileConn)
 # 
 # print('saving')
 
-write.csv(result, paste0('./MIRT-VAE-Qmatrix/results/results/mirt_', paste(args, collapse = '_'), '.csv'))
+#write.csv(result, paste0('./MIRT-VAE-Qmatrix/results/results/mirt_', paste(args, collapse = '_'), '.csv'))
