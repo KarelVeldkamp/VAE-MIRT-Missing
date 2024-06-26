@@ -43,8 +43,7 @@ if (cfg$simulate){
   colnames(data) = as.character(1:ncol(data))
   data[sample(1:length(data), ceiling(length(data)*missing))]=NA
   print(mean(is.na(data)))  
-  if (cfg$save){
-    write.csv(data, '~/vae/MIRT-VAE-Qmatrix/data/simulated/data_cor_10_1_.5.csv')
+  if (cfg$save_pars){
     write.csv(a, '~/vae/MIRT-VAE-Qmatrix/data/simulated/a_cor_10_1_.5.csv')
     write.csv(b, '~/vae/MIRT-VAE-Qmatrix/data/simulated/b_cor_10_1_.5.csv')
     write.csv(theta, '~/vae/MIRT-VAE-Qmatrix/data/simulated/theta_cor_10_1_.5.csv')
